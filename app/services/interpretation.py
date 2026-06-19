@@ -1,27 +1,26 @@
 """
-Interpretation service: scored data -> Claude -> validated report JSON.
+Interpretation service: scored data -> AI -> validated report JSON.
 
-Pipeline position:
-    scoring.score_all()  ->  interpret()  ->  report JSON (fills the template)
+Pipeline:
+    scoring.score_all() -> interpret() -> validated report dict -> pdf_generator.generate_pdf()
 
-The client's prompt demands strict, complete, consistently-structured JSON.
-We do not trust the model blindly: after the call we PARSE and VALIDATE the
-output against the exact schema (5 domains in order, 15 facets in order,
-required fields present, recommendation item counts within range). If the
-model returns something malformed, validate_report() raises with a precise
-reason so the pipeline can retry or flag rather than ship a broken report.
-
-The numeric fields (score/norm/diff/level) come from OUR verified scoring
-engine, not the model — we inject them, so the model only writes prose. This
-guarantees the report's numbers always match the scoring engine exactly even
-if the model would have echoed them imperfectly.
+Key design:
+- TRIAD direction_label computed here (not by AI), injected into user message
+- BFI-2 level comes from scoring engine, injected into user message
+- AI writes only prose fields
+- After AI call: parse -> validate -> overwrite all numeric fields with engine values
+- focus_paragraph validated as non-empty and distinct from development_suggestions
 """
 from __future__ import annotations
 
 import json
 from typing import Any
 
-from app.services.interpretation_prompt import DISPLAY_NAMES, SYSTEM_PROMPT
+from app.services.interpretation_prompt import (
+    DISPLAY_NAMES,
+    SYSTEM_PROMPT,
+    triad_direction_label,
+)
 
 DOMAIN_ORDER = [
     "Extraversion",
@@ -35,29 +34,19 @@ DOMAIN_FACETS_DISPLAY = {
     "Agreeableness": ["Compassion", "Respectfulness", "Trust"],
     "Conscientiousness": ["Organization", "Productiveness", "Responsibility"],
     "Negative Emotionality": ["Anxiety", "Depression", "Emotional Volatility"],
-    "Open-Mindedness": [
-        "Intellectual Curiosity",
-        "Aesthetic Sensitivity",
-        "Creative Imagination",
-    ],
+    "Open-Mindedness": ["Intellectual Curiosity", "Aesthetic Sensitivity", "Creative Imagination"],
 }
 
-DOMAIN_REQUIRED = {"name", "score", "norm", "diff", "level", "meaning", "preferences", "potential_needs", "facets"}
-FACET_REQUIRED = {"name", "score", "norm", "diff", "level", "meaning", "preferences", "potential_needs"}
+DOMAIN_REQUIRED = {"name","score","norm","diff","level","meaning","preferences","potential_needs","facets"}
+FACET_REQUIRED  = {"name","score","norm","diff","level","meaning","preferences","potential_needs"}
+TRIAD_REQUIRED  = {"score","direction_label","interpretation","workplace_implications"}
 
 
 class InterpretationError(RuntimeError):
     pass
 
 
-# --- build the user message from scores ------------------------------------
 def build_user_message(participant: dict[str, Any], scores: dict[str, Any]) -> str:
-    """
-    Compose the participant-data message the model interprets. We hand it the
-    numbers (with display names) and ask it to fill the prose fields. Sending
-    the computed score/norm/diff/level means the model interprets consistent,
-    correct data rather than recomputing anything.
-    """
     triad = scores["triad"]
     payload = {
         "participant": {
@@ -65,9 +54,18 @@ def build_user_message(participant: dict[str, Any], scores: dict[str, Any]) -> s
             "role": participant.get("role", ""),
         },
         "triad": {
-            "task": {"score": round(triad["task"]["score"], 2)},
-            "sociability": {"score": round(triad["sociability"]["score"], 2)},
-            "dominance": {"score": round(triad["dominance"]["score"], 2)},
+            "task": {
+                "score": round(triad["task"]["score"], 2),
+                "direction_label": triad_direction_label(triad["task"]["score"]),
+            },
+            "sociability": {
+                "score": round(triad["sociability"]["score"], 2),
+                "direction_label": triad_direction_label(triad["sociability"]["score"]),
+            },
+            "dominance": {
+                "score": round(triad["dominance"]["score"], 2),
+                "direction_label": triad_direction_label(triad["dominance"]["score"]),
+            },
         },
         "domains": [],
     }
@@ -92,24 +90,24 @@ def build_user_message(participant: dict[str, Any], scores: dict[str, Any]) -> s
         payload["domains"].append(dom)
 
     return (
-        "Generate the Work Style Report for the following participant data. "
-        "Use these exact score, norm, diff, and level values in the output; "
-        "write the interpretation, meaning, preferences, potential_needs, "
-        "executive_summary, and recommendations fields.\n\n"
+        "Generate the Work Style Report for the following participant. "
+        "IMPORTANT: Use second person (you/your) in ALL fields — never third person. "
+        "Use direction_label values VERBATIM for TRIAD dimensions. "
+        "Use the score/norm/diff/level values exactly as provided for BFI-2. "
+        "Write all prose fields: interpretation, meaning, preferences, potential_needs, "
+        "executive_summary, recommendations (including a unique focus_paragraph).\n\n"
         + json.dumps(payload, indent=2)
     )
 
 
-# --- parse + validate ------------------------------------------------------
 def parse_model_json(raw_text: str) -> dict:
-    """Extract the JSON object from the model's text, tolerating stray fences."""
     text = raw_text.strip()
     if text.startswith("```"):
-        # strip ```json ... ``` if the model added them despite instructions
-        text = text.split("```", 2)[1] if text.count("```") >= 2 else text
+        parts = text.split("```")
+        text = parts[1] if len(parts) >= 2 else text
         if text.startswith("json"):
             text = text[4:]
-        text = text.strip().rstrip("`").strip()
+        text = text.strip()
     try:
         return json.loads(text)
     except json.JSONDecodeError as e:
@@ -117,8 +115,6 @@ def parse_model_json(raw_text: str) -> dict:
 
 
 def validate_report(report: dict) -> None:
-    """Validate against the client's exact schema. Raises on any violation."""
-    # top-level keys
     for key in ("executive_summary", "triad", "domains", "recommendations"):
         if key not in report:
             raise InterpretationError(f"Missing top-level key: {key}")
@@ -131,11 +127,11 @@ def validate_report(report: dict) -> None:
         t = report["triad"].get(dim)
         if not t:
             raise InterpretationError(f"Missing triad.{dim}")
-        for fld in ("score", "interpretation", "workplace_implications"):
+        for fld in TRIAD_REQUIRED:
             if fld not in t or str(t[fld]).strip() == "":
                 raise InterpretationError(f"triad.{dim}.{fld} missing/empty")
 
-    # domains: exactly 5, correct order
+    # domains
     domains = report["domains"]
     if len(domains) != 5:
         raise InterpretationError(f"Expected 5 domains, got {len(domains)}")
@@ -144,22 +140,18 @@ def validate_report(report: dict) -> None:
         if dom.get("name") != expected:
             raise InterpretationError(f"Domain {i} should be '{expected}', got '{dom.get('name')}'")
         if not DOMAIN_REQUIRED.issubset(dom.keys()):
-            raise InterpretationError(f"Domain '{expected}' missing fields: {DOMAIN_REQUIRED - set(dom.keys())}")
+            raise InterpretationError(f"Domain '{expected}' missing fields")
         facets = dom["facets"]
         exp_facets = DOMAIN_FACETS_DISPLAY[expected]
         if len(facets) != 3:
             raise InterpretationError(f"Domain '{expected}' must have 3 facets, got {len(facets)}")
         for j, fac in enumerate(facets):
             if fac.get("name") != exp_facets[j]:
-                raise InterpretationError(
-                    f"{expected} facet {j} should be '{exp_facets[j]}', got '{fac.get('name')}'"
-                )
+                raise InterpretationError(f"{expected} facet {j} should be '{exp_facets[j]}'")
             if not FACET_REQUIRED.issubset(fac.keys()):
-                raise InterpretationError(
-                    f"Facet '{exp_facets[j]}' missing fields: {FACET_REQUIRED - set(fac.keys())}"
-                )
+                raise InterpretationError(f"Facet '{exp_facets[j]}' missing fields")
 
-    # recommendations: count ranges per the client's spec
+    # recommendations — now includes focus_paragraph
     rec = report["recommendations"]
     counts = {"strengths": (3, 6), "blind_spots": (2, 4), "development_suggestions": (3, 5)}
     for field, (lo, hi) in counts.items():
@@ -167,22 +159,25 @@ def validate_report(report: dict) -> None:
         if not isinstance(items, list):
             raise InterpretationError(f"recommendations.{field} must be a list")
         if not (lo <= len(items) <= hi):
-            raise InterpretationError(
-                f"recommendations.{field} must have {lo}-{hi} items, got {len(items)}"
-            )
+            raise InterpretationError(f"recommendations.{field} must have {lo}–{hi} items, got {len(items)}")
+
+    focus = rec.get("focus_paragraph", "").strip()
+    if not focus or len(focus) < 50:
+        raise InterpretationError("recommendations.focus_paragraph is missing or too short")
+    # Ensure it's not literally copying a dev suggestion
+    for suggestion in rec.get("development_suggestions", []):
+        if suggestion.strip().lower() == focus.lower():
+            raise InterpretationError("focus_paragraph must not duplicate a development_suggestion verbatim")
 
 
 def inject_verified_numbers(report: dict, scores: dict[str, Any]) -> dict:
-    """
-    Overwrite the model's numeric fields with our verified engine values, so
-    the report's numbers are guaranteed correct regardless of what the model
-    echoed. Prose fields are left as the model wrote them.
-    """
+    """Overwrite all numeric fields with our engine values. Prose is left as AI wrote it."""
     triad = scores["triad"]
     for dim in ("task", "sociability", "dominance"):
         report["triad"][dim]["score"] = round(triad[dim]["score"], 2)
+        report["triad"][dim]["direction_label"] = triad_direction_label(triad[dim]["score"])
 
-    score_by_display = {}
+    score_by_display: dict[str, dict] = {}
     for d in scores["bfi2"]["domains"]:
         score_by_display[DISPLAY_NAMES[d["name"]]] = d
         for f in d["facets"]:
@@ -191,19 +186,20 @@ def inject_verified_numbers(report: dict, scores: dict[str, Any]) -> dict:
     for dom in report["domains"]:
         src = score_by_display.get(dom["name"])
         if src:
-            dom["score"], dom["norm"], dom["diff"], dom["level"] = (
-                round(src["score"], 2), src["norm"], round(src["diff"], 2), src["level"],
-            )
+            dom["score"] = round(src["score"], 2)
+            dom["norm"]  = src["norm"]
+            dom["diff"]  = round(src["diff"], 2)
+            dom["level"] = src["level"]
         for fac in dom["facets"]:
             fsrc = score_by_display.get(fac["name"])
             if fsrc:
-                fac["score"], fac["norm"], fac["diff"], fac["level"] = (
-                    round(fsrc["score"], 2), fsrc["norm"], round(fsrc["diff"], 2), fsrc["level"],
-                )
+                fac["score"] = round(fsrc["score"], 2)
+                fac["norm"]  = fsrc["norm"]
+                fac["diff"]  = round(fsrc["diff"], 2)
+                fac["level"] = fsrc["level"]
     return report
 
 
-# --- orchestration (model call is injected for testability) ----------------
 def interpret(
     participant: dict[str, Any],
     scores: dict[str, Any],
@@ -211,12 +207,9 @@ def interpret(
 ) -> dict:
     """
     participant: {"name", "role"}
-    scores: output of scoring.score_all()
-    model_call: callable(system_prompt: str, user_message: str) -> str
-                (the raw model text). Injected so this is unit-testable without
-                a live API key, and so the API client can be swapped freely.
-
-    Returns the validated, number-verified report dict.
+    scores:      output of scoring.score_all()
+    model_call:  callable(system_prompt, user_message) -> str
+    Returns validated, number-verified report dict.
     """
     user_message = build_user_message(participant, scores)
     raw = model_call(SYSTEM_PROMPT, user_message)
