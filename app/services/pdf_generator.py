@@ -250,33 +250,132 @@ def _radar_svg(domains: list[dict], size: int = 260) -> str:
 </svg>"""
 
 
-def _role_proximity_svg(task: float, soc: float, dom: float, w: int = 200, h: int = 160) -> str:
-    """Mini TRIAD triangle showing employee location vs role clusters."""
-    # Simple 2D projection: x = dom, y = task (top to bottom inverted)
-    cx, cy = w // 2, h // 2
-    scale = min(w, h) * 0.35
-    lo, hi = -3.0, 3.0
-    def to_px(t, d):
-        x = cx + (d / hi) * scale
-        y = cy - (t / hi) * scale
-        return x, y
+def _role_proximity_svg(task: float, soc: float, dom: float, w: int = 530, h: int = 380) -> str:
+    """
+    Proper ternary TRIAD Role Navigator matching Tripp's approved visual.
+    Triangle: Task Orientation (top, green), Sociability (bottom-left, blue),
+    Dominance (bottom-right, orange).
+    13 fixed role cluster coloured dots + employee star.
+    Clean, minimal — SHL/Hogan style.
+    """
+    import math as _m
 
-    employee_x, employee_y = to_px(task, dom)
+    ROLE_COLORS = [
+        "#2563EB","#16A34A","#DC2626","#6B7280","#9333EA",
+        "#374151","#0891B2","#059669","#3B82F6","#10B981",
+        "#F59E0B","#8B5CF6","#EF4444",
+    ]
 
+    def norm(v): return (v + 3) / 6.0
+
+    # Triangle vertices — extra padding for axis labels
+    pad_t, pad_b, pad_l, pad_r = 56, 48, 56, 56
+    vt = (w / 2,       pad_t)           # top   — Task Orientation
+    vl = (pad_l,       h - pad_b - 16)  # left  — Sociability
+    vr = (w - pad_r,   h - pad_b - 16)  # right — Dominance
+
+    def to_xy(t_sc, s_sc, d_sc):
+        t = norm(t_sc); s = norm(s_sc); d = norm(d_sc)
+        tot = t + s + d or 1
+        t, s, d = t/tot, s/tot, d/tot
+        return (t*vt[0] + s*vl[0] + d*vr[0],
+                t*vt[1] + s*vl[1] + d*vr[1])
+
+    # Light grid lines (3 levels per axis)
+    grid = ""
+    N = 20
+    for step in [0.25, 0.50, 0.75]:
+        for axis in range(3):
+            pts = []
+            for i in range(N + 1):
+                a = i / N
+                if axis == 0:   b, c = step - a, 1 - step
+                elif axis == 1: b, c = a, step
+                else:           b, c = step, a
+                b = step - a if axis == 0 else (a if axis == 1 else step)
+                c = 1 - a - b
+                if 0 <= a <= 1 and 0 <= b <= 1 and 0 <= c <= 1:
+                    if axis == 0:   coords = (a*6-3, b*6-3, c*6-3)
+                    elif axis == 1: coords = (c*6-3, a*6-3, b*6-3)
+                    else:           coords = (b*6-3, c*6-3, a*6-3)
+                    x, y = to_xy(*coords)
+                    if (pad_l-5 < x < w-pad_r+5 and pad_t-5 < y < h-pad_b+5):
+                        pts.append(f"{x:.1f},{y:.1f}")
+            if len(pts) > 1:
+                grid += f'<polyline points="{" ".join(pts)}" fill="none" stroke="#E8EDF5" stroke-width="0.7"/>\n'
+
+    # Triangle
+    tri = (f'<polygon points="{vt[0]:.1f},{vt[1]:.1f} {vl[0]:.1f},{vl[1]:.1f} ' +
+           f'{vr[0]:.1f},{vr[1]:.1f}" fill="#F8FAFF" stroke="#C8D5E8" stroke-width="1.5"/>\n')
+
+    # Axis labels
+    G = "#16A34A"
+    axlbls = (
+        f'<text x="{vt[0]}" y="{vt[1]-22}" text-anchor="middle" font-size="9" font-weight="bold" fill="{G}" font-family="RF,Arial">Task Orientation</text>\n' +
+        f'<text x="{vt[0]}" y="{vt[1]-11}" text-anchor="middle" font-size="7.5" fill="{G}" font-family="RF,Arial">(Structure)</text>\n' +
+        f'<text x="{vl[0]}" y="{vl[1]+18}" text-anchor="middle" font-size="9" font-weight="bold" fill="{BLUE}" font-family="RF,Arial">Sociability</text>\n' +
+        f'<text x="{vl[0]}" y="{vl[1]+29}" text-anchor="middle" font-size="7.5" fill="{BLUE}" font-family="RF,Arial">(Connect)</text>\n' +
+        f'<text x="{vr[0]}" y="{vr[1]+18}" text-anchor="middle" font-size="9" font-weight="bold" fill="{ORANGE}" font-family="RF,Arial">Dominance</text>\n' +
+        f'<text x="{vr[0]}" y="{vr[1]+29}" text-anchor="middle" font-size="7.5" fill="{ORANGE}" font-family="RF,Arial">(Influence)</text>\n'
+    )
+
+    # Role cluster dots — manual label offsets to avoid overlaps
+    # (dx, dy, anchor): nudge relative to dot centre
+    LABEL_OFFSETS = [
+        ( 0, -12, "middle"),   # Team Leader
+        (  12, -10, "start"),  # Task Motivator
+        (  12,   4, "start"),  # Power Seeker
+        ( -12, -10, "end"),    # Critic
+        ( -12,  -9, "end"),    # Attention Seeker
+        (   0,  12, "middle"), # Negative
+        ( -12,  -9, "end"),    # Social
+        ( -14,  -9, "end"),    # Coordinator
+        ( -12,  -9, "end"),    # Follower
+        ( -14,  -9, "end"),    # Teamwork Support
+        (  12,  -9, "start"),  # Evaluator
+        (   0, -12, "middle"), # Problem Solver
+        (  12,  -9, "start"),  # Task Completer
+    ]
     dots = ""
-    for role, tc, sc2, dc in ROLE_CLUSTERS:
-        rx, ry = to_px(tc, dc)
-        dots += f'<circle cx="{rx:.1f}" cy="{ry:.1f}" r="4" fill="{TEXT_LIGHT}" opacity="0.6"/>\n'
+    for i, (rname, tc, sc2, dc) in enumerate(ROLE_CLUSTERS):
+        rx, ry = to_xy(tc, sc2, dc)
+        color = ROLE_COLORS[i % len(ROLE_COLORS)]
+        dx, dy, anchor = LABEL_OFFSETS[i] if i < len(LABEL_OFFSETS) else (0, -12, "middle")
+        lx = rx + dx
+        ly = ry + dy
+        dots += (
+            f'<circle cx="{rx:.1f}" cy="{ry:.1f}" r="6" fill="{color}" opacity="0.88" stroke="{WHITE}" stroke-width="1"/>\n' +
+            f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="{anchor}" font-size="7.5" fill="#1A2535" font-family="RF,Arial">{rname}</text>\n'
+        )
 
-    return f"""<svg width="{w}" height="{h}" xmlns="http://www.w3.org/2000/svg">
-  <rect x="1" y="1" width="{w-2}" height="{h-2}" rx="4" fill="{BG_CARD}" stroke="{RULE}" stroke-width="0.5"/>
-  <line x1="{cx}" y1="8" x2="{cx}" y2="{h-8}" stroke="{RULE}" stroke-width="0.5" stroke-dasharray="3,2"/>
-  <line x1="8" y1="{cy}" x2="{w-8}" y2="{cy}" stroke="{RULE}" stroke-width="0.5" stroke-dasharray="3,2"/>
-  {dots}
-  <polygon points="{employee_x:.1f},{employee_y-8:.1f} {employee_x-7:.1f},{employee_y+5:.1f} {employee_x+7:.1f},{employee_y+5:.1f}"
-    fill="{BLUE}" stroke="{WHITE}" stroke-width="1.5"/>
-  <text x="{cx}" y="{h-2}" text-anchor="middle" font-size="7" fill="{TEXT_LIGHT}" font-family="RF,Arial">Task · Dominance view</text>
-</svg>"""
+    # Employee star
+    ex, ey = to_xy(task, soc, dom)
+    def star_pts(cx, cy, ro=11, ri=4.5, n=5):
+        pts = []
+        for k in range(n*2):
+            r = ro if k%2==0 else ri
+            a = _m.radians(k*180/n - 90)
+            pts.append(f"{cx+r*_m.cos(a):.1f},{cy+r*_m.sin(a):.1f}")
+        return " ".join(pts)
+
+    star = (f'<polygon points="{star_pts(ex, ey)}" ' +
+            f'fill="{BLUE}" stroke="{WHITE}" stroke-width="2"/>\n')
+
+    # Legend
+    ly_leg = h - 14
+    lx_leg = pad_l
+    legend = (
+        f'<polygon points="{star_pts(lx_leg+8, ly_leg, 6, 2.5)}" fill="{BLUE}" stroke="{WHITE}" stroke-width="1"/>\n' +
+        f'<text x="{lx_leg+18}" y="{ly_leg+4}" font-size="8" fill="#374151" font-family="RF,Arial">Your Position</text>\n' +
+        f'<circle cx="{lx_leg+100}" cy="{ly_leg}" r="5" fill="#2563EB" opacity="0.88" stroke="{WHITE}" stroke-width="1"/>\n' +
+        f'<text x="{lx_leg+110}" y="{ly_leg+4}" font-size="8" fill="#374151" font-family="RF,Arial">Role Cluster</text>\n'
+    )
+
+    return f'''<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg">
+  <rect width="{w}" height="{h}" fill="white"/>
+  {grid}{tri}{axlbls}{dots}{star}{legend}
+</svg>'''
+
 
 
 def _compute_role_distances(task: float, soc: float, dom: float) -> list[tuple[str,float,str]]:
@@ -488,8 +587,11 @@ p {{ line-height: 1.68; margin-bottom: 10px; font-size: 10pt; }}
 .bullet {{ color: {ORANGE}; font-size: 11pt; line-height: 1.2; flex-shrink: 0; }}
 
 /* ── ROLE PROXIMITY ── */
-.proximity-grid {{ display: grid; grid-template-columns: 200px 1fr; gap: 20px;
-                   align-items: start; margin-top: 12px; }}
+.ternary-map {{ display: flex; justify-content: center; }}
+.proximity-grid {{ display: flex; flex-direction: column; gap: 16px; margin-top: 12px; }}
+.proximity-right {{ }}
+.proximity-table-label {{ font-size: 8pt; font-weight: 700; letter-spacing: 1px;
+                           text-transform: uppercase; color: {BLUE}; margin-bottom: 8px; }}
 .proximity-table {{ width: 100%; border-collapse: collapse; font-size: 9.5pt; }}
 .proximity-table th {{ font-size: 7.5pt; font-weight: 700; letter-spacing: 1px;
                        text-transform: uppercase; color: {TEXT_MID};
@@ -548,7 +650,7 @@ def _welcome(p: dict, pg: int) -> str:
   <p>This report is organized into four sections that help managers understand employee work style, interpret assessment results, and apply practical leadership strategies.</p>
 
   <h2>Introduction</h2>
-  <p>This report provides practical leadership insights about {{employee}} derived from two evidence-based frameworks. Together, they describe how {{employee}} is likely to approach work, interact with others, respond to workplace demands, and contribute to team performance. These insights should be used alongside direct observation, ongoing feedback, and direct conversations.</p>
+  <p>This report provides practical leadership insights about {_esc(employee)} derived from two evidence-based frameworks. Together, they describe how {_esc(employee)} is likely to approach work, interact with others, respond to workplace demands, and contribute to team performance. These insights should be used alongside direct observation, ongoing feedback, and direct conversations.</p>
 
   <h2>Personality Assessment</h2>
   <p>Personality reflects a person's natural behavioral tendencies and typical patterns likely to emerge during everyday work interactions. The Five Factor Model measures normal personality characteristics that influence how individuals approach work, relationships, leadership, and career success.</p>
@@ -714,7 +816,7 @@ def _triad_profile(p: dict, report: dict, pg: int) -> str:
     return f"""<div class="page content">
   <div class="eyebrow">TRIAD Assessment</div>
   <h2>TRIAD at a Glance</h2>
-  <p class="subtitle">The TRIAD profile summarises {{employee}}'s natural tendencies toward Task Orientation,
+  <p class="subtitle">The TRIAD profile summarises {_esc(employee)}'s natural tendencies toward Task Orientation,
   Sociability, and Dominance, a snapshot of how they are most likely to contribute within a team.</p>
 
   <div class="glance-card">
@@ -809,28 +911,27 @@ def _role_proximity(p: dict, report: dict, pg: int) -> str:
 
     return f"""<div class="page content">
   <div class="eyebrow">TRIAD Assessment</div>
-  <h2>Role Cluster Proximity</h2>
-  <p class="subtitle">These are the role profiles {{employee}} is most similar to based on their
-  unique combination of scores across all three TRIAD dimensions. Closer is better.</p>
+  <h2>TRIAD Role Navigator</h2>
+  <p class="subtitle">{_esc(employee)}'s location in the TRIAD role space. The closer {_esc(employee)} is to a role, the more naturally they are likely to exhibit the behaviors associated with that role.</p>
 
   <div class="proximity-grid">
-    <div>{mini_svg}</div>
-    <div>
+    <div class="ternary-map">{mini_svg}</div>
+    <div class="proximity-right">
+      <div class="proximity-table-label">Closest Role Matches</div>
       <table class="proximity-table">
         <thead>
           <tr>
-            <th>Rank</th>
-            <th>Role</th>
-            <th>Similarity</th>
-            <th>Fit</th>
-            <th></th>
+            <th style="width:44px">Rank</th>
+            <th style="width:160px">Role</th>
+            <th style="width:90px">Similarity</th>
+            <th style="width:140px">Fit</th>
+            <th style="width:100px">Fit Level</th>
           </tr>
         </thead>
         <tbody>{rows}</tbody>
       </table>
-      <p style="font-size:8.5pt;color:{TEXT_LIGHT};margin-top:10px;font-style:italic">
-        Role profiles are based on {{employee}}'s combined Task Orientation, Sociability,
-        and Dominance scores across all three TRIAD dimensions.
+      <p style="font-size:8pt;color:{TEXT_LIGHT};margin-top:10px;font-style:italic">
+        Based on {_esc(employee)}'s combined Task Orientation, Sociability, and Dominance scores.
       </p>
     </div>
   </div>
