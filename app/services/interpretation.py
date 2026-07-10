@@ -1,15 +1,12 @@
 """
-Interpretation service: scored data -> AI -> validated report JSON.
+Interpretation service — Manager Edition.
+Pipeline: scoring.score_all() -> interpret() -> validated report dict -> generate_pdf()
 
-Pipeline:
-    scoring.score_all() -> interpret() -> validated report dict -> pdf_generator.generate_pdf()
-
-Key design:
-- TRIAD direction_label computed here (not by AI), injected into user message
-- BFI-2 level comes from scoring engine, injected into user message
-- AI writes only prose fields
-- After AI call: parse -> validate -> overwrite all numeric fields with engine values
-- focus_paragraph validated as non-empty and distinct from development_suggestions
+Changes from participant version:
+- TRIAD fields: adds likely_contribution + manager_considerations
+- recommendations replaced by manager_action_guide
+- Validation updated for new schema
+- direction_label still computed by code, injected as data
 """
 from __future__ import annotations
 
@@ -23,23 +20,27 @@ from app.services.interpretation_prompt import (
 )
 
 DOMAIN_ORDER = [
-    "Extraversion",
-    "Agreeableness",
-    "Conscientiousness",
-    "Negative Emotionality",
-    "Open-Mindedness",
+    "Extraversion", "Agreeableness", "Conscientiousness",
+    "Negative Emotionality", "Open-Mindedness",
 ]
 DOMAIN_FACETS_DISPLAY = {
-    "Extraversion": ["Sociability", "Assertiveness", "Energy Level"],
-    "Agreeableness": ["Compassion", "Respectfulness", "Trust"],
-    "Conscientiousness": ["Organization", "Productiveness", "Responsibility"],
-    "Negative Emotionality": ["Anxiety", "Depression", "Emotional Volatility"],
-    "Open-Mindedness": ["Intellectual Curiosity", "Aesthetic Sensitivity", "Creative Imagination"],
+    "Extraversion":         ["Sociability", "Assertiveness", "Energy Level"],
+    "Agreeableness":        ["Compassion", "Respectfulness", "Trust"],
+    "Conscientiousness":    ["Organization", "Productiveness", "Responsibility"],
+    "Negative Emotionality":["Anxiety", "Depression", "Emotional Volatility"],
+    "Open-Mindedness":      ["Intellectual Curiosity", "Aesthetic Sensitivity", "Creative Imagination"],
 }
 
 DOMAIN_REQUIRED = {"name","score","norm","diff","level","meaning","preferences","potential_needs","facets"}
 FACET_REQUIRED  = {"name","score","norm","diff","level","meaning","preferences","potential_needs"}
-TRIAD_REQUIRED  = {"score","direction_label","interpretation","workplace_implications"}
+TRIAD_REQUIRED  = {"score","direction_label","interpretation","likely_contribution","manager_considerations"}
+
+MAG_SECTIONS = {
+    "communication_style":  {"narrative", "recommendations"},
+    "motivators_stressors": {"narrative", "motivators", "stressors"},
+    "delegation_guide":     {"narrative", "best_suited_for", "recommendations"},
+    "leadership_summary":   {"narrative", "strengths", "watch_points", "actions"},
+}
 
 
 class InterpretationError(RuntimeError):
@@ -49,7 +50,7 @@ class InterpretationError(RuntimeError):
 def build_user_message(participant: dict[str, Any], scores: dict[str, Any]) -> str:
     triad = scores["triad"]
     payload = {
-        "participant": {
+        "employee": {
             "name": participant.get("name", ""),
             "role": participant.get("role", ""),
         },
@@ -71,17 +72,17 @@ def build_user_message(participant: dict[str, Any], scores: dict[str, Any]) -> s
     }
     for d in scores["bfi2"]["domains"]:
         dom = {
-            "name": DISPLAY_NAMES[d["name"]],
+            "name":  DISPLAY_NAMES[d["name"]],
             "score": round(d["score"], 2),
-            "norm": d["norm"],
-            "diff": round(d["diff"], 2),
+            "norm":  d["norm"],
+            "diff":  round(d["diff"], 2),
             "level": d["level"],
             "facets": [
                 {
-                    "name": DISPLAY_NAMES[f["name"]],
+                    "name":  DISPLAY_NAMES[f["name"]],
                     "score": round(f["score"], 2),
-                    "norm": f["norm"],
-                    "diff": round(f["diff"], 2),
+                    "norm":  f["norm"],
+                    "diff":  round(f["diff"], 2),
                     "level": f["level"],
                 }
                 for f in d["facets"]
@@ -90,12 +91,11 @@ def build_user_message(participant: dict[str, Any], scores: dict[str, Any]) -> s
         payload["domains"].append(dom)
 
     return (
-        "Generate the Work Style Report for the following participant. "
-        "IMPORTANT: Use second person (you/your) in ALL fields — never third person. "
-        "Use direction_label values VERBATIM for TRIAD dimensions. "
-        "Use the score/norm/diff/level values exactly as provided for BFI-2. "
-        "Write all prose fields: interpretation, meaning, preferences, potential_needs, "
-        "executive_summary, recommendations (including a unique focus_paragraph).\n\n"
+        "Generate the Manager Edition Work Style Report for the following employee. "
+        "Use THIRD PERSON (the employee / they / their) throughout ALL fields. "
+        "Use direction_label values VERBATIM for TRIAD. "
+        "Use score/norm/diff/level values exactly as provided for BFI-2. "
+        "Write all prose fields and fully populate the manager_action_guide section.\n\n"
         + json.dumps(payload, indent=2)
     )
 
@@ -115,15 +115,16 @@ def parse_model_json(raw_text: str) -> dict:
 
 
 def validate_report(report: dict) -> None:
-    for key in ("executive_summary", "triad", "domains", "recommendations"):
+    # Top level
+    for key in ("executive_summary","triad","domains","manager_action_guide"):
         if key not in report:
             raise InterpretationError(f"Missing top-level key: {key}")
 
-    if not report["executive_summary"].get("text", "").strip():
+    if not report["executive_summary"].get("text","").strip():
         raise InterpretationError("executive_summary.text is empty")
 
-    # triad
-    for dim in ("task", "sociability", "dominance"):
+    # TRIAD — now has 5 required fields
+    for dim in ("task","sociability","dominance"):
         t = report["triad"].get(dim)
         if not t:
             raise InterpretationError(f"Missing triad.{dim}")
@@ -131,7 +132,7 @@ def validate_report(report: dict) -> None:
             if fld not in t or str(t[fld]).strip() == "":
                 raise InterpretationError(f"triad.{dim}.{fld} missing/empty")
 
-    # domains
+    # Domains
     domains = report["domains"]
     if len(domains) != 5:
         raise InterpretationError(f"Expected 5 domains, got {len(domains)}")
@@ -151,29 +152,26 @@ def validate_report(report: dict) -> None:
             if not FACET_REQUIRED.issubset(fac.keys()):
                 raise InterpretationError(f"Facet '{exp_facets[j]}' missing fields")
 
-    # recommendations — now includes focus_paragraph
-    rec = report["recommendations"]
-    counts = {"strengths": (3, 6), "blind_spots": (2, 4), "development_suggestions": (3, 5)}
-    for field, (lo, hi) in counts.items():
-        items = rec.get(field)
-        if not isinstance(items, list):
-            raise InterpretationError(f"recommendations.{field} must be a list")
-        if not (lo <= len(items) <= hi):
-            raise InterpretationError(f"recommendations.{field} must have {lo}–{hi} items, got {len(items)}")
-
-    focus = rec.get("focus_paragraph", "").strip()
-    if not focus or len(focus) < 50:
-        raise InterpretationError("recommendations.focus_paragraph is missing or too short")
-    # Ensure it's not literally copying a dev suggestion
-    for suggestion in rec.get("development_suggestions", []):
-        if suggestion.strip().lower() == focus.lower():
-            raise InterpretationError("focus_paragraph must not duplicate a development_suggestion verbatim")
+    # Manager Action Guide
+    mag = report["manager_action_guide"]
+    for section, required_fields in MAG_SECTIONS.items():
+        if section not in mag:
+            raise InterpretationError(f"manager_action_guide.{section} missing")
+        sec = mag[section]
+        for fld in required_fields:
+            if fld not in sec:
+                raise InterpretationError(f"manager_action_guide.{section}.{fld} missing")
+            val = sec[fld]
+            if isinstance(val, str) and not val.strip():
+                raise InterpretationError(f"manager_action_guide.{section}.{fld} is empty")
+            if isinstance(val, list) and len(val) == 0:
+                raise InterpretationError(f"manager_action_guide.{section}.{fld} has no items")
 
 
 def inject_verified_numbers(report: dict, scores: dict[str, Any]) -> dict:
-    """Overwrite all numeric fields with our engine values. Prose is left as AI wrote it."""
+    """Overwrite numeric fields with engine values. Prose is left as AI wrote it."""
     triad = scores["triad"]
-    for dim in ("task", "sociability", "dominance"):
+    for dim in ("task","sociability","dominance"):
         report["triad"][dim]["score"] = round(triad[dim]["score"], 2)
         report["triad"][dim]["direction_label"] = triad_direction_label(triad[dim]["score"])
 
