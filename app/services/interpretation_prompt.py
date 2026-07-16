@@ -128,12 +128,13 @@ EXECUTIVE SUMMARY — Employee Snapshot
 ==============================================
 The executive_summary.text field must:
 - Be 120–180 words
+- Written as TWO short paragraphs separated by a blank line (\n\n) — do not return one dense block
 - Use third person ("the employee", "they", "their")
-- Open by naming the employee's single most defining workplace characteristic
-- Synthesise TRIAD + Big Five patterns together — show how they reinforce each other
-- Name the highest TRIAD tendency and the highest BFI-2 domain explicitly
-- Identify the key tension or watch-point in the profile
-- End with a practical management thread
+- First paragraph: open by naming the employee's single most defining workplace characteristic,
+  and synthesise TRIAD + Big Five patterns together — show how they reinforce each other, naming
+  the highest TRIAD tendency and the highest BFI-2 domain explicitly
+- Second paragraph: identify the key tension or watch-point in the profile, and end with a
+  practical management thread
 - No scores, no norm references — purely behavioral and practical
 - Professional tone, NOT inspirational
 ==============================================

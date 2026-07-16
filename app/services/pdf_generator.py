@@ -28,8 +28,11 @@ from typing import Any
 BLUE       = "#1C3F6E"
 BLUE_MID   = "#2E6DB4"
 BLUE_LIGHT = "#EAF0FB"
-ORANGE     = "#E07B3F"
+ORANGE     = "#0F766E"
+NORM_COLOR = "#E07B3F"
 GREEN      = "#2D7A2D"
+LEVEL_AVG  = "#B45309"
+LEVEL_LOW  = "#B91C1C"
 WHITE      = "#FFFFFF"
 BG_CARD    = "#F4F7FC"
 TEXT_DARK  = "#1A2535"
@@ -74,7 +77,7 @@ def _fit_label(similarity: float) -> str:
 
 def _fit_color(label: str) -> str:
     return {"Very High": GREEN, "High": GREEN,
-            "Moderate": ORANGE, "Low": "#C0392B", "Very Low": "#C0392B"}.get(label, TEXT_MID)
+            "Moderate": "#E07B3F", "Low": "#C0392B", "Very Low": "#C0392B"}.get(label, TEXT_MID)
 
 def _font_css() -> str:
     return """
@@ -112,9 +115,9 @@ def _bfi_bar_svg(score: float, norm: float, w: int = 420, h: int = 32) -> str:
 
     return f"""<svg width="{w}" height="{h}" xmlns="http://www.w3.org/2000/svg" style="display:block">
   <rect x="0" y="{mid_y-4}" width="{w}" height="8" rx="4" fill="#DCE8F5"/>
-  <text x="{nlx}" y="9" text-anchor="middle" font-size="7" fill="{ORANGE}"
+  <text x="{nlx}" y="9" text-anchor="middle" font-size="7" fill="{NORM_COLOR}"
         font-family="RF,Arial" font-weight="bold">norm</text>
-  <line x1="{nx}" y1="11" x2="{nx}" y2="{h-1}" stroke="{ORANGE}" stroke-width="2"/>
+  <line x1="{nx}" y1="11" x2="{nx}" y2="{h-1}" stroke="{NORM_COLOR}" stroke-width="2"/>
   <circle cx="{sx}" cy="{mid_y}" r="{r}" fill="{WHITE}" stroke="{BLUE}" stroke-width="2.5"/>
 </svg>"""
 
@@ -159,13 +162,13 @@ def _gauge_svg(score: float, w: int = 200, h: int = 140) -> str:
   <line x1="{cx}" y1="{cy}" x2="{nx2:.1f}" y2="{ny2:.1f}"
         stroke="{TEXT_DARK}" stroke-width="2.5" stroke-linecap="round"/>
   <circle cx="{cx}" cy="{cy}" r="5" fill="{TEXT_DARK}"/>
-  <text x="{l3x:.1f}" y="{l3y+4:.1f}" text-anchor="end" font-size="8"
+  <text x="{l3x:.1f}" y="{l3y+4:.1f}" text-anchor="end" font-size="9.5"
         fill="{TEXT_LIGHT}" font-family="RF,Arial">-3</text>
-  <text x="{cx}" y="{cy - R - 10}" text-anchor="middle" font-size="8"
+  <text x="{cx}" y="{cy - R - 10}" text-anchor="middle" font-size="9.5"
         fill="{TEXT_LIGHT}" font-family="RF,Arial">0</text>
-  <text x="{p3x:.1f}" y="{p3y+4:.1f}" text-anchor="start" font-size="8"
+  <text x="{p3x:.1f}" y="{p3y+4:.1f}" text-anchor="start" font-size="9.5"
         fill="{TEXT_LIGHT}" font-family="RF,Arial">+3</text>
-  <text x="{cx}" y="{cy + 20}" text-anchor="middle" font-size="13" font-weight="bold"
+  <text x="{cx}" y="{cy + 20}" text-anchor="middle" font-size="15" font-weight="bold"
         fill="{BLUE}" font-family="RF,Arial">{score_str}</text>
 </svg>"""
 
@@ -197,12 +200,12 @@ def _triad_bar_svg(score: float, w: int = 460, h: int = 32) -> str:
 
 def _radar_svg(domains: list[dict], size: int = 260) -> str:
     n = 5
-    pad_x = 90   # extra horizontal space for "Open-Mindedness" label
-    pad_y = 72
+    pad_x = 118  # extra horizontal space for "Open-Mindedness" label - must scale with size/r_max
+    pad_y = 40
     total_w = size + 2 * pad_x
     total_h = size + 2 * pad_y
     cx, cy = total_w / 2, total_h / 2
-    r_max = size * 0.36
+    r_max = size * 0.44
     lo, hi = 1.0, 5.0
 
     def pt(i, v):
@@ -234,23 +237,23 @@ def _radar_svg(domains: list[dict], size: int = 260) -> str:
     for i,(nm,anchor) in enumerate(zip(short,anchors)):
         lx, ly = label_pt(i)
         sc_lbl = f"{domains[i]['score']:.2f} · {domains[i]['level']}"
-        labels += f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="{anchor}" font-size="8" fill="{BLUE}" font-family="RF,Arial" font-weight="bold">{nm}</text>\n'
-        labels += f'<text x="{lx:.1f}" y="{ly+10:.1f}" text-anchor="{anchor}" font-size="7.5" fill="{TEXT_MID}" font-family="RF,Arial">{sc_lbl}</text>\n'
+        labels += f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="{anchor}" font-size="10" fill="{BLUE}" font-family="RF,Arial" font-weight="bold">{nm}</text>\n'
+        labels += f'<text x="{lx:.1f}" y="{ly+10:.1f}" text-anchor="{anchor}" font-size="9" fill="{TEXT_MID}" font-family="RF,Arial">{sc_lbl}</text>\n'
 
     legend_y = total_h - 8
     return f"""<svg width="{total_w}" height="{total_h}" viewBox="0 0 {total_w} {total_h}" xmlns="http://www.w3.org/2000/svg">
 {grid}{spokes}
 <polygon points="{score_pts}" fill="{BLUE}" fill-opacity="0.15" stroke="{BLUE}" stroke-width="2"/>
-<polygon points="{norm_pts}" fill="none" stroke="{ORANGE}" stroke-width="1.5" stroke-dasharray="5,3"/>
+<polygon points="{norm_pts}" fill="none" stroke="{NORM_COLOR}" stroke-width="1.5" stroke-dasharray="5,3"/>
 {labels}
 <circle cx="{pad_x+4}" cy="{legend_y}" r="5" fill="{BLUE}" fill-opacity="0.5"/>
-<text x="{pad_x+14}" y="{legend_y+4}" font-size="8" fill="{TEXT_DARK}" font-family="RF,Arial">Employee score</text>
-<circle cx="{pad_x+90}" cy="{legend_y}" r="5" fill="none" stroke="{ORANGE}" stroke-width="1.5"/>
-<text x="{pad_x+100}" y="{legend_y+4}" font-size="8" fill="{TEXT_DARK}" font-family="RF,Arial">Workplace norm</text>
+<text x="{pad_x+14}" y="{legend_y+4}" font-size="9.5" fill="{TEXT_DARK}" font-family="RF,Arial">Employee score</text>
+<circle cx="{pad_x+90}" cy="{legend_y}" r="5" fill="none" stroke="{NORM_COLOR}" stroke-width="1.5"/>
+<text x="{pad_x+100}" y="{legend_y+4}" font-size="9.5" fill="{TEXT_DARK}" font-family="RF,Arial">Workplace norm</text>
 </svg>"""
 
 
-def _role_proximity_svg(task: float, soc: float, dom: float, w: int = 530, h: int = 380) -> str:
+def _role_proximity_svg(task: float, soc: float, dom: float, w: int = 560, h: int = 390) -> str:
     """
     Proper ternary TRIAD Role Navigator matching Tripp's approved visual.
     Triangle: Task Orientation (top, green), Sociability (bottom-left, blue),
@@ -304,19 +307,62 @@ def _role_proximity_svg(task: float, soc: float, dom: float, w: int = 530, h: in
             if len(pts) > 1:
                 grid += f'<polyline points="{" ".join(pts)}" fill="none" stroke="#E8EDF5" stroke-width="0.7"/>\n'
 
-    # Triangle
-    tri = (f'<polygon points="{vt[0]:.1f},{vt[1]:.1f} {vl[0]:.1f},{vl[1]:.1f} ' +
-           f'{vr[0]:.1f},{vr[1]:.1f}" fill="#F8FAFF" stroke="#C8D5E8" stroke-width="1.5"/>\n')
+    # Triangle — tri-color gradient wash (green/blue/orange) + gradient edges,
+    # matching the shading style in Tripp's reference mockup
+    G = "#16A34A"
+    TRI_BLUE = "#2563EB"
+    TRI_ORANGE = "#F97316"
+    diag = _m.hypot(w, h)
+    tri_defs = f'''<defs>
+    <radialGradient id="triGradTask" cx="{vt[0]:.1f}" cy="{vt[1]:.1f}" r="{diag*0.85:.1f}" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="{G}" stop-opacity="0.40"/>
+      <stop offset="100%" stop-color="{G}" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="triGradSoc" cx="{vl[0]:.1f}" cy="{vl[1]:.1f}" r="{diag*0.85:.1f}" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="{TRI_BLUE}" stop-opacity="0.40"/>
+      <stop offset="100%" stop-color="{TRI_BLUE}" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="triGradDom" cx="{vr[0]:.1f}" cy="{vr[1]:.1f}" r="{diag*0.85:.1f}" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="{TRI_ORANGE}" stop-opacity="0.40"/>
+      <stop offset="100%" stop-color="{TRI_ORANGE}" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="triEdgeTS" x1="{vt[0]:.1f}" y1="{vt[1]:.1f}" x2="{vl[0]:.1f}" y2="{vl[1]:.1f}" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="{G}"/>
+      <stop offset="100%" stop-color="{TRI_BLUE}"/>
+    </linearGradient>
+    <linearGradient id="triEdgeSD" x1="{vl[0]:.1f}" y1="{vl[1]:.1f}" x2="{vr[0]:.1f}" y2="{vr[1]:.1f}" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="{TRI_BLUE}"/>
+      <stop offset="100%" stop-color="{TRI_ORANGE}"/>
+    </linearGradient>
+    <linearGradient id="triEdgeDT" x1="{vr[0]:.1f}" y1="{vr[1]:.1f}" x2="{vt[0]:.1f}" y2="{vt[1]:.1f}" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="{TRI_ORANGE}"/>
+      <stop offset="100%" stop-color="{G}"/>
+    </linearGradient>
+    <clipPath id="triClip">
+      <polygon points="{vt[0]:.1f},{vt[1]:.1f} {vl[0]:.1f},{vl[1]:.1f} {vr[0]:.1f},{vr[1]:.1f}"/>
+    </clipPath>
+  </defs>\n'''
+
+    tri = (
+        f'<polygon points="{vt[0]:.1f},{vt[1]:.1f} {vl[0]:.1f},{vl[1]:.1f} {vr[0]:.1f},{vr[1]:.1f}" fill="#FEFEFE"/>\n' +
+        f'<g clip-path="url(#triClip)">\n' +
+        f'  <rect x="0" y="0" width="{w}" height="{h}" fill="url(#triGradTask)"/>\n' +
+        f'  <rect x="0" y="0" width="{w}" height="{h}" fill="url(#triGradSoc)"/>\n' +
+        f'  <rect x="0" y="0" width="{w}" height="{h}" fill="url(#triGradDom)"/>\n' +
+        f'</g>\n' +
+        f'<line x1="{vt[0]:.1f}" y1="{vt[1]:.1f}" x2="{vl[0]:.1f}" y2="{vl[1]:.1f}" stroke="url(#triEdgeTS)" stroke-width="2"/>\n' +
+        f'<line x1="{vl[0]:.1f}" y1="{vl[1]:.1f}" x2="{vr[0]:.1f}" y2="{vr[1]:.1f}" stroke="url(#triEdgeSD)" stroke-width="2"/>\n' +
+        f'<line x1="{vr[0]:.1f}" y1="{vr[1]:.1f}" x2="{vt[0]:.1f}" y2="{vt[1]:.1f}" stroke="url(#triEdgeDT)" stroke-width="2"/>\n'
+    )
 
     # Axis labels
-    G = "#16A34A"
     axlbls = (
-        f'<text x="{vt[0]}" y="{vt[1]-22}" text-anchor="middle" font-size="9" font-weight="bold" fill="{G}" font-family="RF,Arial">Task Orientation</text>\n' +
-        f'<text x="{vt[0]}" y="{vt[1]-11}" text-anchor="middle" font-size="7.5" fill="{G}" font-family="RF,Arial">(Structure)</text>\n' +
-        f'<text x="{vl[0]}" y="{vl[1]+18}" text-anchor="middle" font-size="9" font-weight="bold" fill="{BLUE}" font-family="RF,Arial">Sociability</text>\n' +
-        f'<text x="{vl[0]}" y="{vl[1]+29}" text-anchor="middle" font-size="7.5" fill="{BLUE}" font-family="RF,Arial">(Connect)</text>\n' +
-        f'<text x="{vr[0]}" y="{vr[1]+18}" text-anchor="middle" font-size="9" font-weight="bold" fill="{ORANGE}" font-family="RF,Arial">Dominance</text>\n' +
-        f'<text x="{vr[0]}" y="{vr[1]+29}" text-anchor="middle" font-size="7.5" fill="{ORANGE}" font-family="RF,Arial">(Influence)</text>\n'
+        f'<text x="{vt[0]}" y="{vt[1]-22}" text-anchor="middle" font-size="10.5" font-weight="bold" fill="{G}" font-family="RF,Arial">Task Orientation</text>\n' +
+        f'<text x="{vt[0]}" y="{vt[1]-11}" text-anchor="middle" font-size="9" fill="{G}" font-family="RF,Arial">(Structure)</text>\n' +
+        f'<text x="{vl[0]}" y="{vl[1]+18}" text-anchor="middle" font-size="10.5" font-weight="bold" fill="{BLUE}" font-family="RF,Arial">Sociability</text>\n' +
+        f'<text x="{vl[0]}" y="{vl[1]+29}" text-anchor="middle" font-size="9" fill="{BLUE}" font-family="RF,Arial">(Connect)</text>\n' +
+        f'<text x="{vr[0]}" y="{vr[1]+18}" text-anchor="middle" font-size="10.5" font-weight="bold" fill="{TRI_ORANGE}" font-family="RF,Arial">Dominance</text>\n' +
+        f'<text x="{vr[0]}" y="{vr[1]+29}" text-anchor="middle" font-size="9" fill="{TRI_ORANGE}" font-family="RF,Arial">(Influence)</text>\n'
     )
 
     # Role cluster dots — manual label offsets to avoid overlaps
@@ -326,8 +372,8 @@ def _role_proximity_svg(task: float, soc: float, dom: float, w: int = 530, h: in
         (  12, -10, "start"),  # Task Motivator
         (  12,   4, "start"),  # Power Seeker
         ( -12, -10, "end"),    # Critic
-        ( -12,  -9, "end"),    # Attention Seeker
-        (   0,  12, "middle"), # Negative
+        (  16,  16, "start"),  # Attention Seeker
+        ( -16, -12, "end"),    # Negative
         ( -12,  -9, "end"),    # Social
         ( -14,  -9, "end"),    # Coordinator
         ( -12,  -9, "end"),    # Follower
@@ -337,15 +383,35 @@ def _role_proximity_svg(task: float, soc: float, dom: float, w: int = 530, h: in
         (  12,  -9, "start"),  # Task Completer
     ]
     dots = ""
+    # Compute all dot positions first, then apply a small cosmetic separation
+    # nudge to any pair close enough to visually merge (e.g. Task Motivator /
+    # Critic sit ~5pt apart in Tripp's source cluster data with a 6pt dot
+    # radius each). This only nudges the drawn marker position for legibility;
+    # it does not alter the underlying scores or the similarity table.
+    raw_xy = [to_xy(tc, sc2, dc) for (_, tc, sc2, dc) in ROLE_CLUSTERS]
+    xy = list(raw_xy)
+    MIN_SEP = 15.0
+    for _ in range(4):  # a few relaxation passes is enough for this dataset
+        for a in range(len(xy)):
+            for b in range(a + 1, len(xy)):
+                ax, ay = xy[a]; bx, by = xy[b]
+                ddx, ddy = bx - ax, by - ay
+                dist = math.hypot(ddx, ddy) or 0.01
+                if dist < MIN_SEP:
+                    push = (MIN_SEP - dist) / 2
+                    ux, uy = ddx / dist, ddy / dist
+                    xy[a] = (ax - ux * push, ay - uy * push)
+                    xy[b] = (bx + ux * push, by + uy * push)
+
     for i, (rname, tc, sc2, dc) in enumerate(ROLE_CLUSTERS):
-        rx, ry = to_xy(tc, sc2, dc)
+        rx, ry = xy[i]
         color = ROLE_COLORS[i % len(ROLE_COLORS)]
         dx, dy, anchor = LABEL_OFFSETS[i] if i < len(LABEL_OFFSETS) else (0, -12, "middle")
         lx = rx + dx
         ly = ry + dy
         dots += (
             f'<circle cx="{rx:.1f}" cy="{ry:.1f}" r="6" fill="{color}" opacity="0.88" stroke="{WHITE}" stroke-width="1"/>\n' +
-            f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="{anchor}" font-size="7.5" fill="#1A2535" font-family="RF,Arial">{rname}</text>\n'
+            f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="{anchor}" font-size="8.5" fill="#1A2535" font-family="RF,Arial">{rname}</text>\n'
         )
 
     # Employee star
@@ -366,14 +432,14 @@ def _role_proximity_svg(task: float, soc: float, dom: float, w: int = 530, h: in
     lx_leg = pad_l
     legend = (
         f'<polygon points="{star_pts(lx_leg+8, ly_leg, 6, 2.5)}" fill="{BLUE}" stroke="{WHITE}" stroke-width="1"/>\n' +
-        f'<text x="{lx_leg+18}" y="{ly_leg+4}" font-size="8" fill="#374151" font-family="RF,Arial">Your Position</text>\n' +
+        f'<text x="{lx_leg+18}" y="{ly_leg+4}" font-size="9.5" fill="#374151" font-family="RF,Arial">Your Position</text>\n' +
         f'<circle cx="{lx_leg+100}" cy="{ly_leg}" r="5" fill="#2563EB" opacity="0.88" stroke="{WHITE}" stroke-width="1"/>\n' +
-        f'<text x="{lx_leg+110}" y="{ly_leg+4}" font-size="8" fill="#374151" font-family="RF,Arial">Role Cluster</text>\n'
+        f'<text x="{lx_leg+110}" y="{ly_leg+4}" font-size="9.5" fill="#374151" font-family="RF,Arial">Role Cluster</text>\n'
     )
 
     return f'''<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg">
   <rect width="{w}" height="{h}" fill="white"/>
-  {grid}{tri}{axlbls}{dots}{star}{legend}
+  {tri_defs}{tri}{grid}{axlbls}{dots}{star}{legend}
 </svg>'''
 
 
@@ -397,7 +463,7 @@ def _css(font_css: str) -> str:
 {font_css}
 @page {{ size: A4; margin: 0; }}
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-body {{ font-family: 'RF', Arial, sans-serif; color: {TEXT_DARK}; font-size: 10pt;
+body {{ font-family: 'RF', Arial, sans-serif; color: {TEXT_DARK}; font-size: 11pt;
        -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
 
 .page {{ width: 210mm; height: 297mm; position: relative; page-break-after: always;
@@ -408,11 +474,9 @@ body {{ font-family: 'RF', Arial, sans-serif; color: {TEXT_DARK}; font-size: 10p
           height: 297mm; justify-content: space-between; }}
 .cover-body {{ padding: 56px 60px 36px; flex: 1; display: flex; flex-direction: column;
                justify-content: flex-start; }}
-.cover-tag {{ font-size: 8.5pt; font-weight: 700; letter-spacing: 3px;
-              color: rgba(255,255,255,0.55); text-transform: uppercase; margin-bottom: 18px; }}
-.cover-edition {{ font-size: 11pt; font-weight: 700; color: {ORANGE}; margin-bottom: 22px; }}
-.cover-title {{ font-size: 40pt; font-weight: 700; color: {WHITE}; line-height: 1.1; margin-bottom: 20px; }}
-.cover-rule {{ width: 44px; height: 3px; background: {ORANGE}; margin-bottom: 22px; }}
+.cover-tag {{ font-size: 13pt; font-weight: 700; letter-spacing: 3px;
+              color: {WHITE}; text-transform: uppercase; margin-bottom: 18px; }}
+.cover-title {{ font-size: 40pt; font-weight: 700; color: #4CC9F0; line-height: 1.1; margin-bottom: 20px; }}
 .cover-desc {{ font-size: 10pt; color: rgba(255,255,255,0.65); line-height: 1.65; max-width: 400px; }}
 .cover-meta {{ display: flex; gap: 44px; padding: 24px 60px;
                border-top: 1px solid rgba(255,255,255,0.15); }}
@@ -425,14 +489,15 @@ body {{ font-family: 'RF', Arial, sans-serif; color: {TEXT_DARK}; font-size: 10p
 
 /* ── CONTENT ── */
 .content {{ padding: 40px 56px 58px; }}
-.eyebrow {{ font-size: 7.5pt; font-weight: 700; letter-spacing: 2px; color: {BLUE};
+.eyebrow {{ font-size: 11pt; font-weight: 700; letter-spacing: 2px; color: {BLUE};
             text-transform: uppercase; border-bottom: 1.5px solid {BLUE};
-            padding-bottom: 7px; margin-bottom: 20px; }}
+            padding-bottom: 9px; margin-bottom: 22px; }}
 h2 {{ font-size: 12pt; font-weight: 700; color: {BLUE}; margin: 20px 0 8px; }}
+.sub-h {{ font-size: 11pt; font-weight: 700; color: {TEXT_DARK}; margin: 6px 0 10px; }}
 h2:first-of-type {{ margin-top: 0; }}
-p {{ line-height: 1.68; margin-bottom: 10px; font-size: 10pt; }}
+p {{ line-height: 1.7; margin-bottom: 10px; font-size: 10.5pt; }}
 .lead {{ font-size: 10.5pt; line-height: 1.72; margin-bottom: 18px; }}
-.subtitle {{ font-size: 9.5pt; color: {TEXT_MID}; margin-bottom: 18px; }}
+.subtitle {{ font-size: 10pt; color: {TEXT_MID}; margin-bottom: 18px; }}
 
 .footer {{ position: absolute; bottom: 18px; left: 56px; right: 56px;
            display: flex; justify-content: space-between;
@@ -469,45 +534,55 @@ p {{ line-height: 1.68; margin-bottom: 10px; font-size: 10pt; }}
 }}
 
 /* ── CALLOUT ── */
-.callout {{ background: {BG_CARD}; border-radius: 0 8px 8px 0; border-left: 3px solid {BLUE}; padding: 14px 18px; margin-top: 16px; }}
+.callout {{ background: {BG_CARD}; border-radius: 0 8px 8px 0; border-left: 3px solid {BLUE}; padding: 14px 18px; margin-top: 16px; margin-bottom: 20px; }}
+.callout-spacious {{ background: {BG_CARD}; border-radius: 0 8px 8px 0; border-left: 3px solid {BLUE}; padding: 22px 28px; margin-top: 24px; margin-bottom: 20px; }}
+.callout-spacious p {{ font-size: 10.5pt; line-height: 1.7; margin: 0; }}
 .callout-label {{ font-size: 9pt; font-weight: 700; color: {BLUE}; margin-bottom: 3px; }}
 .callout-sub {{ font-size: 8pt; color: {TEXT_LIGHT}; margin-bottom: 8px; }}
-.callout p {{ font-size: 9.5pt; margin: 0; }}
+.callout p {{ font-size: 9.5pt; margin: 0 0 8px; }}
+.callout p:last-child {{ margin-bottom: 0; }}
 
 /* ── GLANCE BARS ── */
-.glance-card {{ background: {BG_CARD}; border-radius: 10px; padding: 14px 20px; margin-bottom: 10px; }}
-.glance-card-title {{ font-size: 7.5pt; font-weight: 700; letter-spacing: 2px;
-                      text-transform: uppercase; color: {TEXT_MID};
-                      text-align: center; margin-bottom: 14px; }}
-.bar-row {{ display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }}
+.glance-card {{ background: {BG_CARD}; border-radius: 10px; padding: 34px 34px; margin-bottom: 38px; }}
+.glance-card-title {{ font-size: 11pt; font-weight: 700; letter-spacing: 1.5px;
+                      text-transform: uppercase; color: {BLUE};
+                      text-align: center; margin-bottom: 16px; }}
+.fig-caption {{ font-size: 8.5pt; color: {TEXT_MID}; font-style: italic; text-align: center;
+                margin: -8px 0 16px; }}
+.fig-captions-label {{ font-size: 9pt; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+                       color: {TEXT_MID}; margin-bottom: 14px; }}
+.report-transition {{ margin-top: 20px; padding-top: 16px; border-top: 1px solid {RULE}; }}
+.report-transition-note {{ font-size: 8pt; color: {TEXT_LIGHT}; font-style: italic;
+                           margin-bottom: 10px; }}
+.bar-row {{ display: flex; align-items: center; gap: 18px; margin-bottom: 16px; }}
 .bar-name {{ font-size: 10pt; font-weight: 700; color: {TEXT_DARK}; width: 150px; flex-shrink: 0; }}
-.bar-track {{ flex: 1; }}
+.bar-track {{ flex: 0 0 340px; }}
 .bar-right {{ width: 68px; text-align: right; flex-shrink: 0; }}
 .bar-score {{ font-size: 11pt; font-weight: 700; color: {BLUE}; line-height: 1; }}
 .bar-level {{ font-size: 8pt; font-weight: 700; }}
 .bar-level-high   {{ color: {GREEN}; }}
-.bar-level-average {{ color: {BLUE}; }}
-.bar-level-low    {{ color: #555E6B; }}
+.bar-level-average {{ color: {LEVEL_AVG}; }}
+.bar-level-low    {{ color: {LEVEL_LOW}; }}
 .scale-row {{ display: flex; justify-content: space-between; padding: 4px 0 0;
-              font-size: 8pt; color: {TEXT_LIGHT}; }}
+              font-size: 8pt; color: {TEXT_MID}; margin-left: 168px; width: 340px; }}
 .radar-center {{ display: flex; justify-content: center; }}
 
 /* ── GAUGE ── */
 .gauge-row {{ display: flex; justify-content: space-around; align-items: flex-end;
-              padding: 8px 0 4px; }}
+              padding: 18px 0 8px; }}
 .gauge-item {{ text-align: center; }}
-.gauge-dim-name {{ font-size: 9.5pt; font-weight: 700; color: {BLUE}; margin-top: 4px; }}
+.gauge-dim-name {{ font-size: 12pt; font-weight: 700; color: {BLUE}; margin-top: 10px; }}
 
 /* ── TRIAD PROFILE, stacked bars like BFI ── */
-.triad-stack-row {{ display: flex; align-items: center; gap: 16px; margin-bottom: 14px;
-                    padding-bottom: 12px; border-bottom: 1px solid {RULE}; }}
-.triad-stack-row:last-child {{ border-bottom: none; margin-bottom: 0; }}
-.triad-stack-left {{ width: 160px; flex-shrink: 0; }}
-.triad-stack-name {{ font-size: 10.5pt; font-weight: 700; color: {BLUE}; }}
-.triad-stack-score {{ font-size: 20pt; font-weight: 700; color: {BLUE}; line-height: 1.1; }}
-.triad-stack-pill {{ display: inline-block; font-size: 7.5pt; font-weight: 700;
-                     color: {WHITE}; background: {ORANGE}; padding: 3px 10px;
-                     border-radius: 20px; margin-top: 4px; }}
+.triad-stack-row {{ display: flex; align-items: center; gap: 20px; margin-bottom: 32px;
+                    padding-bottom: 30px; border-bottom: 1px solid {RULE}; }}
+.triad-stack-row:last-child {{ border-bottom: none; margin-bottom: 0; padding-bottom: 0; }}
+.triad-stack-left {{ width: 180px; flex-shrink: 0; }}
+.triad-stack-name {{ font-size: 11.5pt; font-weight: 700; color: {BLUE}; }}
+.triad-stack-score {{ font-size: 30pt; font-weight: 700; color: {BLUE}; line-height: 1.15; }}
+.triad-stack-pill {{ display: inline-block; font-size: 8.5pt; font-weight: 700;
+                     color: {WHITE}; background: {ORANGE}; padding: 4px 12px;
+                     border-radius: 20px; margin-top: 6px; }}
 .triad-stack-track {{ flex: 1; }}
 
 /* ── DOMAIN PAGES ── */
@@ -517,10 +592,10 @@ p {{ line-height: 1.68; margin-bottom: 10px; font-size: 10pt; }}
 .domain-name {{ font-size: 14pt; font-weight: 700; color: {BLUE}; }}
 .level-badge {{ font-size: 8pt; font-weight: 700; padding: 2px 8px; border-radius: 4px; }}
 .badge-high    {{ background: #DCF0DC; color: {GREEN}; }}
-.badge-average {{ background: {BLUE_LIGHT}; color: {BLUE}; }}
-.badge-low     {{ background: #E8EDF5; color: #555E6B; }}
+.badge-average {{ background: #FCEEDD; color: {LEVEL_AVG}; }}
+.badge-low     {{ background: #FBE2E2; color: {LEVEL_LOW}; }}
 .domain-bar {{ margin-bottom: 10px; }}
-.section-intro {{ font-size: 9.5pt; line-height: 1.65; margin-bottom: 10px; }}
+.section-intro {{ font-size: 10pt; line-height: 1.65; margin-bottom: 10px; }}
 
 .two-col {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }}
 .two-col > div {{
@@ -530,7 +605,7 @@ p {{ line-height: 1.68; margin-bottom: 10px; font-size: 10pt; }}
 }}
 .col-label {{ font-size: 7pt; font-weight: 700; letter-spacing: 1.5px; color: {BLUE};
               text-transform: uppercase; margin-bottom: 5px; }}
-.col-text {{ font-size: 9pt; line-height: 1.62; margin: 0; }}
+.col-text {{ font-size: 9.5pt; line-height: 1.62; margin: 0; }}
 
 .facet-rule {{ border-top: 1px solid {RULE}; padding-top: 8px; margin: 8px 0; }}
 .facet-rule-label {{ font-size: 7pt; font-weight: 700; letter-spacing: 1.5px;
@@ -540,7 +615,7 @@ p {{ line-height: 1.68; margin-bottom: 10px; font-size: 10pt; }}
 .facet-header {{ display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }}
 .facet-name {{ font-size: 9.5pt; font-weight: 700; color: {BLUE}; flex: 1; }}
 .facet-bar {{ margin-bottom: 5px; }}
-.facet-body {{ font-size: 9pt; line-height: 1.6; margin-bottom: 7px; }}
+.facet-body {{ font-size: 9.5pt; line-height: 1.6; margin-bottom: 7px; }}
 .facet-two-col {{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }}
 .facet-two-col > div {{
   background: {BG_CARD};
@@ -549,60 +624,71 @@ p {{ line-height: 1.68; margin-bottom: 10px; font-size: 10pt; }}
 }}
 
 /* ── TRIAD INTERPRETATION, consistent with domain pages ── */
-.triad-interp-block {{ margin-bottom: 20px; padding-bottom: 18px;
+.triad-interp-block {{ margin-bottom: 14px; padding-bottom: 12px;
                        border-bottom: 1px solid {RULE}; }}
 .triad-interp-block:last-child {{ border-bottom: none; margin-bottom: 0; }}
-.triad-interp-header {{ display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }}
+.triad-interp-header {{ display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }}
 .triad-interp-score {{ font-size: 22pt; font-weight: 700; color: {BLUE}; }}
 .triad-interp-name {{ font-size: 13pt; font-weight: 700; color: {BLUE}; }}
 .dir-pill {{ display: inline-block; font-size: 7.5pt; font-weight: 700;
              color: {WHITE}; background: {ORANGE}; padding: 3px 10px;
              border-radius: 20px; margin-left: 6px; }}
-.triad-interp-bar {{ margin: 8px 0 12px; }}
+.triad-interp-bar {{ margin: 6px 0 10px; }}
 .triad-three-col {{ display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }}
 .triad-three-col > div {{
   background: {BG_CARD};
   border-radius: 6px;
   padding: 10px 12px;
 }}
-.triad-three-col p {{ font-size: 9pt; line-height: 1.62; margin: 0; }}
+.triad-three-col p {{ font-size: 9.5pt; line-height: 1.62; margin: 0; }}
 
 /* ── MANAGER ACTION GUIDE ── */
-.mag-section {{ background: {BG_CARD}; border-radius: 8px; padding: 10px 14px;
-                margin-bottom: 8px; }}
+.mag-section {{ background: {BG_CARD}; border-radius: 10px; padding: 14px 22px;
+                margin-bottom: 18px; }}
 .mag-section-title {{
-  font-size: 9pt;
+  font-size: 12pt;
   font-weight: 700;
   color: {BLUE};
-  margin-bottom: 8px;
-  padding-bottom: 6px;
+  margin-bottom: 13px;
+  padding-bottom: 10px;
   border-bottom: 1px solid {RULE};
 }}
-.mag-narrative {{ font-size: 9pt; line-height: 1.6; margin-bottom: 8px; }}
-.mag-sub-label {{ font-size: 7pt; font-weight: 700; letter-spacing: 1px;
-                  color: {BLUE}; text-transform: uppercase; margin-bottom: 4px; margin-top: 6px; }}
+.mag-narrative {{ font-size: 9.5pt; line-height: 1.68; margin-bottom: 13px; }}
+.mag-sub-label {{ font-size: 8pt; font-weight: 700; letter-spacing: 1px;
+                  color: {BLUE}; text-transform: uppercase; margin-bottom: 7px; margin-top: 10px; }}
 .mag-list {{ list-style: none; padding: 0; }}
-.mag-list li {{ display: flex; gap: 8px; font-size: 9pt; line-height: 1.55;
-                margin-bottom: 4px; align-items: flex-start; }}
+.mag-list li {{ display: flex; gap: 8px; font-size: 9.5pt; line-height: 1.6;
+                margin-bottom: 7px; align-items: flex-start; }}
 .bullet {{ color: {ORANGE}; font-size: 11pt; line-height: 1.2; flex-shrink: 0; }}
 
 /* ── ROLE PROXIMITY ── */
-.ternary-map {{ display: flex; justify-content: center; }}
-.proximity-grid {{ display: flex; flex-direction: column; gap: 16px; margin-top: 12px; }}
+.ternary-map {{ display: flex; flex-direction: column; align-items: center; }}
+.proximity-grid {{ display: flex; flex-direction: column; gap: 24px; margin-top: 16px; }}
 .proximity-right {{ }}
-.proximity-table-label {{ font-size: 8pt; font-weight: 700; letter-spacing: 1px;
-                           text-transform: uppercase; color: {BLUE}; margin-bottom: 8px; }}
+.proximity-table-label {{ font-size: 11pt; font-weight: 700; letter-spacing: 1px;
+                           text-transform: uppercase; color: {BLUE}; margin-bottom: 12px; }}
 .proximity-table {{ width: 100%; border-collapse: collapse; font-size: 9.5pt; }}
-.proximity-table th {{ font-size: 7.5pt; font-weight: 700; letter-spacing: 1px;
+.proximity-table th {{ font-size: 8.5pt; font-weight: 700; letter-spacing: 1px;
                        text-transform: uppercase; color: {TEXT_MID};
-                       border-bottom: 1.5px solid {RULE}; padding: 6px 8px;
+                       border-bottom: 1.5px solid {RULE}; padding: 10px 10px;
                        text-align: left; }}
-.proximity-table td {{ padding: 8px 10px; border-bottom: 1px solid {RULE};
-                       vertical-align: middle; font-size: 10pt; }}
+.proximity-table td {{ padding: 16px 12px; border-bottom: 1px solid {RULE};
+                       vertical-align: middle; font-size: 11pt; }}
 .proximity-table tr:nth-child(1) td {{ background: rgba(28,63,110,0.04); }}
 .proximity-table tr:last-child td {{ border-bottom: none; }}
 .rank-1 {{ font-weight: 700; }}
 .fit-bar {{ height: 8px; border-radius: 4px; background: {BLUE}; display: inline-block; }}
+
+/* ── TABLE OF CONTENTS ── */
+.toc-list {{ margin-top: 24px; }}
+.toc-bar {{ display: flex; align-items: center; gap: 20px; padding: 26px 0 26px 26px;
+            border-left: 5px solid {BLUE}; margin-bottom: 14px; }}
+.toc-bar:nth-child(2) {{ border-left-color: {ORANGE}; }}
+.toc-bar:nth-child(3) {{ border-left-color: {BLUE}; }}
+.toc-bar:nth-child(4) {{ border-left-color: {ORANGE}; }}
+.toc-bar-title {{ font-size: 15pt; font-weight: 700; color: {TEXT_DARK}; flex: 1; }}
+.toc-bar-desc {{ font-size: 9.5pt; color: {TEXT_MID}; flex: 1.2; line-height: 1.6; }}
+.toc-bar-page {{ font-size: 20pt; font-weight: 700; color: {TEXT_MID}; flex-shrink: 0; }}
 """
 
 
@@ -625,9 +711,7 @@ def _cover(p: dict, pg: int) -> str:
     return f"""<div class="page cover">
   <div class="cover-body">
     <div class="cover-tag">Work Style Report</div>
-    <div class="cover-edition">Manager Edition</div>
-    <div class="cover-title">Understanding<br>How They Work</div>
-    <div class="cover-rule"></div>
+    <div class="cover-title">Manager Edition</div>
     <div class="cover-desc">Evidence-based guidance for optimizing employee performance,
     team integration, and workplace effectiveness.</div>
   </div>
@@ -643,45 +727,129 @@ def _cover(p: dict, pg: int) -> str:
 </div>"""
 
 
-def _welcome(p: dict, pg: int) -> str:
-    employee = p.get("name","the employee")
+def _toc(p: dict, pg: int, entries: list[tuple[str, int, str]]) -> str:
+    """Combined 'What's in the report' intro + Table of Contents on one page,
+    per Tripp: 'See the revised layout doc for layout... WHAT'S IN THE WORK
+    STYLE REPORT? Box [...] [Table of Contents]' - these go together."""
+    employee = p.get("name", "")
+    rows = ""
+    for i, (title, page_num, desc) in enumerate(entries, start=1):
+        rows += f"""<div class="toc-bar">
+      <div class="toc-bar-title">{_esc(title)}</div>
+      <div class="toc-bar-desc">{_esc(desc)}</div>
+      <div class="toc-bar-page">{page_num:02d}</div>
+    </div>"""
     return f"""<div class="page content">
   <div class="eyebrow">What's in the Work Style Report?</div>
-  <p>This report is organized into four sections that help managers understand employee work style, interpret assessment results, and apply practical leadership strategies.</p>
+  <div class="callout"><p>This report is organized into four sections that help managers and team leaders understand employee work style, interpret assessment results, and apply practical leadership strategies.</p></div>
+  <h2 style="margin-top:22px">Table of Contents</h2>
+  <div class="toc-list">{rows}</div>
+  {_footer(employee, pg)}
+</div>"""
 
-  <h2>Introduction</h2>
-  <p>This report provides practical leadership insights about {_esc(employee)} derived from two evidence-based frameworks. Together, they describe how {_esc(employee)} is likely to approach work, interact with others, respond to workplace demands, and contribute to team performance. These insights should be used alongside direct observation, ongoing feedback, and direct conversations.</p>
 
-  <h2>Personality Assessment</h2>
-  <p>Personality reflects a person's natural behavioral tendencies and typical patterns likely to emerge during everyday work interactions. The Five Factor Model measures normal personality characteristics that influence how individuals approach work, relationships, leadership, and career success.</p>
+def _introduction_1(p: dict, pg: int) -> str:
+    """Introduction to the Work Style Report, page 1 of 2. Content and
+    structure per Tripp's revised layout doc, Section 1."""
+    employee = p.get("name","the employee")
+    return f"""<div class="page content">
+  <div class="eyebrow">Introduction to the Work Style Report</div>
+  <div class="callout"><p>This section introduces the Work Style Report and provides an overview of the Personality and TRIAD assessments. Together, these evidence-based methods offer a structured understanding of how employees are likely to approach work, contribute to teams, and perform in the workplace.</p></div>
 
-  <h2>The TRIAD Model Role Profile</h2>
-  <p>TRIAD (Tracking Roles In and Across Domains) examines the fit between individual profiles and role performance. It measures three primary dimensions:</p>
+  <p>This report provides practical leadership insights derived from two evidence-based frameworks. Together, they offer a structured view of how an employee is likely to approach work, interact with others, respond to workplace demands, and contribute to team performance.</p>
+  <p>This report serves as a management tool that helps leaders better understand employee strengths, development opportunities, communication preferences, and potential performance drivers.</p>
+  <p>These insights should be considered alongside other tools such as direct observation, feedback, experience, and ongoing conversations with {_esc(employee)} to foster optimal workplace performance.</p>
+
+  <h2 style="margin-top:34px">Personality Assessment</h2>
+  <p>Personality reflects a person's natural behavioral tendencies or typical patterns of behavior that are likely to emerge during everyday work interactions. The Five Factor Model of personality has been used with considerable success in workplace settings by measuring normal personality characteristics that influence how individuals approach work, relationships, leadership, and career success. This assessment measures five broad personality factors, described below.</p>
+  <p><strong>Extraversion</strong> reflects the extent to which a person is outgoing and sociable versus reserved and introverted. Higher scores may indicate a greater desire to socialize with others, be more assertive in expressing themselves, and display higher energy and enthusiasm. Lower scores may indicate a greater preference for independent work, greater self-reliance, and reflection.</p>
+  <p><strong>Agreeableness</strong> reflects the extent to which a person is compassionate towards others, respectful, and trusting. Higher scores may indicate a person who is concerned with others' well-being, trusting, and respectful of others. Lower scores may indicate a person who is more critical and analytic, more independent and objective, and more uncompromising.</p>
+  <p><strong>Conscientiousness</strong> refers to a tendency towards structure and orderliness, industriousness, and reliability. Higher scores may indicate a person who is well-organized, persistent in pursuing goals, and responsible. Lower scores may indicate a person who is more spontaneous, but less dependable and responsible.</p>
+  <p><strong>Negative Emotionality</strong> reflects emotional stability and susceptibility to negative emotions. Higher scores may indicate a person who can be more emotionally unstable or moody, temperamental, and anxious and irritable. Lower scores may indicate a person that is calm, secure, self-confident, and not anxious or nervous.</p>
+  <p><strong>Open-Mindedness</strong> reflects imagination, curiosity, and appreciation for new ideas. Higher scores may indicate a person who is intellectually curious, creative, and inquisitive. Lower scores may indicate a person who is more practical, pragmatic, and prefers established convention.</p>
+
+  {_footer(employee, pg)}
+</div>"""
+
+
+def _introduction_2(p: dict, pg: int) -> str:
+    """Introduction to the Work Style Report, page 2 of 2."""
+    employee = p.get("name","the employee")
+    return f"""<div class="page content">
+  <div class="eyebrow">Introduction to the Work Style Report</div>
+
+  <p>There are two points to consider in interpreting the personality assessment. First, there is no one "good" or "bad" personality profile; rather, each pattern offers strengths as well as potential developmental opportunities depending on the work and task setting and role requirements. Second, each of the broad Five Factors is also broken down into lower-level or more specific personality facets that provide more granular detail into the person's behavioral tendencies. These are provided in the following assessment report.</p>
+
+  <h2 style="margin-top:34px">The TRIAD Model Role Profile</h2>
+  <p>Employees not only "perform" in work groups, but they perform certain roles. For example, a person may perform the role of a Team Leader, and others may fill the roles of Problem Solver, Task Motivator, or Teamwork Support. Having these roles performed effectively enables overall task success.</p>
+  <p>We have developed a tool called TRIAD (Tracking Roles In and Across Domains) to examine the fit between individual profiles and role performance, and to identify individuals who would best fill separate task leader, social, problem solver, and other roles.</p>
+  <p>The TRIAD assessment measures three primary role dimensions:</p>
   <div class="triad-dim-list">
-    <div class="triad-dim-item"><span class="triad-dim-label">Task Orientation</span><span class="triad-dim-desc">The degree to which the employee prefers structure, organization, planning, and focus on outcomes.</span></div>
-    <div class="triad-dim-item"><span class="triad-dim-label">Sociability</span><span class="triad-dim-desc">How the employee connects, communicates, collaborates, and builds relationships with others.</span></div>
-    <div class="triad-dim-item"><span class="triad-dim-label">Dominance</span><span class="triad-dim-desc">How the employee influences others, asserts ideas, takes initiative, and guides direction.</span></div>
+    <div class="triad-dim-item"><span class="triad-dim-label">Task Orientation</span><span class="triad-dim-desc">The degree to which an employee prefers structure, organization, planning, and focus on outcomes.</span></div>
+    <div class="triad-dim-item"><span class="triad-dim-label">Sociability</span><span class="triad-dim-desc">How an employee connects, communicates, collaborates, and builds relationships with others.</span></div>
+    <div class="triad-dim-item"><span class="triad-dim-label">Dominance</span><span class="triad-dim-desc">How an employee influences others, asserts ideas, takes initiative, and guides direction.</span></div>
+  </div>
+  <p style="margin-top:14px">Together, these dimensions create a Role Profile, a snapshot of how an employee is most naturally inclined to contribute within a team environment.</p>
+  <p>Understanding an employee's TRIAD profile can help managers identify where the individual is likely to add value, what work environments may be most energizing, and where potential sources of friction or misalignment may emerge. This profile serves as a foundation for understanding team contribution, communication patterns, leadership tendencies, and responses to workplace demands.</p>
+  <p>Moreover, by integrating the results from the Personality Assessment and the TRIAD Role Profile, we are able to get an overall picture of {_esc(employee)}'s work style and key strengths and weaknesses.</p>
+
+  {_footer(employee, pg)}
+</div>"""
+
+
+def _personality_section_intro(p: dict, report: dict, pg: int) -> str:
+    """Personality Assessment section start (box + How to Use framework)
+    merged with the Employee Snapshot (Work Style Summary), per Tripp's
+    revised layout doc. Combined onto one page - each was under 200pt of
+    content on its own, leaving 140-160mm of blank space when split."""
+    employee = p.get("name","the employee")
+    raw_summary = report["executive_summary"]["text"]
+    paras = [para.strip() for para in raw_summary.split("\n\n") if para.strip()]
+    summary_html = "".join(f'<p class="lead">{_esc(para)}</p>' for para in paras)
+
+    return f"""<div class="page content">
+  <div class="eyebrow">Personality Assessment</div>
+  <div class="callout"><p>This section presents the employee's Personality assessment results across the five major personality domains and their underlying facets. These evidence-based insights help managers better understand the employee's natural behavioral tendencies, workplace preferences, and potential performance drivers.</p></div>
+
+  <h2 style="margin-top:22px">How to Use The Personality Assessment</h2>
+  <p>The Personality Assessment translates well-established psychological characteristics into practical workplace insights. It examines patterns that influence communication, decision-making, work habits, motivation, and interpersonal interactions.</p>
+  <p>These results help managers and team leaders better understand how {_esc(employee)} is likely to function in the workplace by identifying:</p>
+  <div class="triad-dim-list">
+    <div class="triad-dim-item"><span class="triad-dim-label">Likely Workplace Behaviors</span><span class="triad-dim-desc">How the employee naturally approaches work, communicates with others, makes decisions, and carries out responsibilities.</span></div>
+    <div class="triad-dim-item"><span class="triad-dim-label">Management Considerations</span><span class="triad-dim-desc">The leadership approaches, feedback, structure, and work environment most likely to support the employee's performance, engagement, and long-term success.</span></div>
+    <div class="triad-dim-item"><span class="triad-dim-label">Development Opportunities</span><span class="triad-dim-desc">Areas where targeted coaching, experiences, or skill development can help the employee build on strengths and address potential challenges.</span></div>
+  </div>
+
+  <div class="report-transition">
+    <h3 class="sub-h">Employee Snapshot</h3>
+    <div class="callout"><p>This snapshot provides a concise, high-level summary of the employee's overall work style. It highlights the employee's most prominent workplace characteristics before exploring the detailed assessment results that follow.</p></div>
+    <h3 class="sub-h" style="margin-top:22px">Work Style Summary</h3>
+    {summary_html}
   </div>
 
   {_footer(employee, pg)}
 </div>"""
 
 
-def _exec_summary(p: dict, report: dict, pg: int) -> str:
+def _triad_section_intro(p: dict, report: dict, pg: int) -> str:
+    """TRIAD Assessment section start (box + How to Use framework) merged
+    with the TRIAD Employee Snapshot (Workplace Contribution Profile),
+    per the revised layout doc. Combined onto one page for the same
+    reason as the Personality section - each was too light on its own."""
     employee = p.get("name","the employee")
-    summary  = _esc(report["executive_summary"]["text"])
     t = report["triad"]
 
-    # Build bridge text cleanly, name each dimension without repeating "tendency"
     task_lbl = _esc(t["task"]["direction_label"])
     soc_lbl  = _esc(t["sociability"]["direction_label"])
     dom_lbl  = _esc(t["dominance"]["direction_label"])
 
-    bridge = (
+    bridge_p1 = (
         f"Read together, the two frameworks tell a consistent story about {_esc(employee)}. "
         f"Sociability is the dominant TRIAD theme ({soc_lbl}, {t['sociability']['score']:+.2f}), "
         f"reinforced by high Agreeableness and Extraversion in the personality results, "
-        f"pointing to someone who naturally builds and holds teams together. "
+        f"pointing to someone who naturally builds and holds teams together."
+    )
+    bridge_p2 = (
         f"Dominance runs at a {dom_lbl.lower()} level ({t['dominance']['score']:+.2f}), "
         f"suggesting influence through ideas and collaboration rather than positional authority. "
         f"Task orientation is {task_lbl.lower()} ({t['task']['score']:+.2f}), "
@@ -689,19 +857,31 @@ def _exec_summary(p: dict, report: dict, pg: int) -> str:
     )
 
     return f"""<div class="page content">
-  <div class="eyebrow">Personality Assessment</div>
-  <h2>Employee Snapshot</h2>
-  <p class="lead">{summary}</p>
-  <div class="callout">
-    <div class="callout-label">Workplace Contribution Profile</div>
-    <div class="callout-sub">A combined read across the Personality and TRIAD assessment results.</div>
-    <p>{bridge}</p>
+  <div class="eyebrow">TRIAD Assessment</div>
+  <div class="callout"><p>This section presents the employee's TRIAD assessment results across the three core dimensions of Task Orientation, Sociability, and Dominance. Together, these dimensions describe how the employee is most naturally inclined to contribute within a team.</p></div>
+
+  <h2>How to Use The TRIAD Assessment</h2>
+  <p>The TRIAD Assessment translates an employee's natural team role tendencies into practical workplace insights. It evaluates how the employee is most likely to contribute within a team by examining three core dimensions of behavior: Task Orientation, Sociability, and Dominance. Together, these dimensions provide a structured understanding of the employee's preferred role, interpersonal style, and approach to accomplishing work.</p>
+  <p>These results help managers better understand how {_esc(employee)} is likely to contribute within a team by identifying:</p>
+  <div class="triad-dim-list">
+    <div class="triad-dim-item"><span class="triad-dim-label">Natural Team Contributions</span><span class="triad-dim-desc">The roles, responsibilities, and work activities the employee is most naturally inclined to perform and where they are likely to add the greatest value.</span></div>
+    <div class="triad-dim-item"><span class="triad-dim-label">Management Considerations</span><span class="triad-dim-desc">The team environment, leadership approach, and opportunities that are most likely to support effective collaboration, engagement, and performance.</span></div>
+    <div class="triad-dim-item"><span class="triad-dim-label">Development Opportunities</span><span class="triad-dim-desc">Practical strategies for expanding the employee's versatility, strengthening less-preferred team behaviors, and preparing for broader responsibilities.</span></div>
   </div>
+
+  <div class="report-transition">
+    <h3 class="sub-h">Employee Snapshot</h3>
+    <div class="callout"><p>This snapshot provides a high-level overview of the employee's workplace contribution profile by integrating the Personality and TRIAD assessment results. It summarizes how the employee is likely to contribute within a team, collaborate with others, and add value in the workplace before exploring the detailed TRIAD interpretations that follow.</p></div>
+    <h3 class="sub-h">Workplace Contribution Profile</h3>
+    <p class="lead">{bridge_p1}</p>
+    <p class="lead">{bridge_p2}</p>
+  </div>
+
   {_footer(employee, pg)}
 </div>"""
 
 
-def _glance(p: dict, report: dict, pg: int) -> str:
+def _glance(p: dict, report: dict, pg: int) -> list[str]:
     employee = p.get("name","")
     domains  = report["domains"]
 
@@ -717,34 +897,49 @@ def _glance(p: dict, report: dict, pg: int) -> str:
       </div>
     </div>"""
 
-    return f"""<div class="page content">
+    page1 = f"""<div class="page content">
   <div class="eyebrow">Personality Assessment</div>
   <h2>Personality at a Glance</h2>
-  <p class="subtitle">Each score is compared to a normative sample. The norm represents the average
-  score of the general population and serves as a reference point for interpreting results.</p>
+  <div class="callout-spacious"><p>The following visualizations provide a high-level summary of the employee's assessment results before the detailed interpretations that follow.</p></div>
+  <h3 class="sub-h" style="margin-top:28px">How to Interpret the Graphs</h3>
+  <p class="subtitle" style="margin-bottom:18px">Each score is compared to a normative sample drawn from the general population. The norm represents the average score of the general population and serves as a reference point for interpreting the employee's results.</p>
+  <p class="subtitle">Scores above or below the norm indicate differences in natural behavioral tendencies; they do not necessarily represent a "more positive" or "more negative" score, as every profile has its own strengths and potential development areas.</p>
+  {_footer(employee, pg)}
+</div>"""
 
-  <div class="glance-card">
+    page2 = f"""<div class="page content">
+  <div class="eyebrow">Personality Assessment</div>
+  <div class="callout" style="padding:10px 16px;margin-top:8px"><p>Visual summary of the employee's personality across the five major personality domains.</p></div>
+  <div class="fig-captions-label">Figure Captions</div>
+
+  <div class="glance-card" style="margin-bottom:12px">
     <div class="glance-card-title">Score vs Norm</div>
+    <p class="fig-caption">Compares the employee's score on each personality domain to the average score (norm) of the general population.</p>
     {rows}
     <div class="scale-row"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>
   </div>
 
   <div class="glance-card">
     <div class="glance-card-title">Profile Shape</div>
-    <div class="radar-center">{_radar_svg(domains, size=210)}</div>
+    <p class="fig-caption">Highlights the relative pattern across the five personality domains, making it easier to identify the employee's strongest and weakest behavioral tendencies at a glance.</p>
+    <div class="radar-center">{_radar_svg(domains, size=290)}</div>
   </div>
-
-  {_footer(employee, pg)}
+  {_footer(employee, pg + 1)}
 </div>"""
+    return [page1, page2]
 
 
-def _domain(p: dict, domain: dict, pg: int) -> str:
+def _domain(p: dict, domain: dict, pg: int, first: bool = False) -> str:
     employee = p.get("name","")
     dname    = _esc(domain["name"])
     score    = domain["score"]
     norm     = domain["norm"]
     level    = domain["level"]
     lc       = _level_cls(level)
+
+    intro_note = ""
+    if first:
+        intro_note = '<p class="report-transition-note">Personality Assessment Report: each domain with its three facets. The marker shows your level and the colored line marks the norm.</p>'
 
     facets_html = ""
     for f in domain["facets"]:
@@ -764,6 +959,7 @@ def _domain(p: dict, domain: dict, pg: int) -> str:
 
     return f"""<div class="page content">
   <div class="eyebrow">Personality Assessment</div>
+  {intro_note}
   <div class="domain-header">
     <div class="domain-title-row">
       <span class="domain-name">{dname}</span>
@@ -782,7 +978,7 @@ def _domain(p: dict, domain: dict, pg: int) -> str:
 </div>"""
 
 
-def _triad_profile(p: dict, report: dict, pg: int) -> str:
+def _triad_profile(p: dict, report: dict, pg: int) -> list[str]:
     """
     TRIAD bars stacked vertically, same visual language as BFI bars.
     Tripp: "stack these on top of each other then present them in a similar
@@ -801,7 +997,7 @@ def _triad_profile(p: dict, report: dict, pg: int) -> str:
         <div class="triad-stack-score">{d['score']:+.2f}</div>
         <div class="triad-stack-pill">{_esc(d['direction_label'])}</div>
       </div>
-      <div class="triad-stack-track">{_triad_bar_svg(d['score'], w=340, h=32)}</div>
+      <div class="triad-stack-track">{_triad_bar_svg(d['score'], w=440, h=38)}</div>
     </div>"""
 
     # Gauge view
@@ -809,28 +1005,40 @@ def _triad_profile(p: dict, report: dict, pg: int) -> str:
     for key, label in dims:
         d = triad[key]
         gauges += f'''<div class="gauge-item">
-      {_gauge_svg(d['score'], w=160, h=130)}
+      {_gauge_svg(d['score'], w=195, h=165)}
       <div class="gauge-dim-name">{_esc(label)}</div>
     </div>'''
 
-    return f"""<div class="page content">
+    page1 = f"""<div class="page content">
   <div class="eyebrow">TRIAD Assessment</div>
   <h2>TRIAD at a Glance</h2>
-  <p class="subtitle">The TRIAD profile summarises {_esc(employee)}'s natural tendencies toward Task Orientation,
-  Sociability, and Dominance, a snapshot of how they are most likely to contribute within a team.</p>
+  <div class="callout-spacious"><p>The following visualizations provide a high-level summary of the employee's assessment results before the interpretations that follow.</p></div>
+  <h3 class="sub-h" style="margin-top:28px">How to Interpret the Graphs</h3>
+  <p class="subtitle" style="margin-bottom:18px">The TRIAD profile summarizes {_esc(employee)}'s natural tendencies toward Task Orientation, Sociability, and Dominance, a snapshot of how they are most likely to contribute within a team.</p>
+  <p class="subtitle">Employees rarely fit a single role perfectly; instead, most display characteristics of multiple nearby role profiles, allowing for flexibility across different teams and work situations.</p>
+  {_footer(employee, pg)}
+</div>"""
+
+    page2 = f"""<div class="page content">
+  <div class="eyebrow">TRIAD Assessment</div>
+  <div class="callout" style="padding:10px 16px;margin-top:8px"><p>Visual summary of the employee's natural tendencies toward Task Orientation, Sociability, and Dominance.</p></div>
+  <div class="fig-captions-label">Figure Captions</div>
 
   <div class="glance-card">
-    <div class="glance-card-title">Gauge View</div>
+    <div class="glance-card-title">TRIAD Snapshot</div>
+    <p class="fig-caption">Provides a quick visual comparison of the employee's standing across the three TRIAD dimensions.</p>
     <div class="gauge-row">{gauges}</div>
   </div>
 
   <div class="glance-card">
-    <div class="glance-card-title">Scale View</div>
+    <div class="glance-card-title">TRIAD Scores</div>
+    <p class="fig-caption">Displays the employee's precise score on each TRIAD dimension relative to the full assessment scale.</p>
     {rows}
   </div>
 
-  {_footer(employee, pg)}
+  {_footer(employee, pg + 1)}
 </div>"""
+    return [page1, page2]
 
 
 def _triad_interpretation(p: dict, report: dict, pg: int) -> str:
@@ -857,10 +1065,10 @@ def _triad_interpretation(p: dict, report: dict, pg: int) -> str:
         <span class="dir-pill">{_esc(d['direction_label'])}</span>
       </div>
       <div class="triad-interp-bar">{_triad_bar_svg(d['score'], w=500, h=32)}</div>
-      <div class="triad-three-col">
-        <div><div class="col-label">Overall Interpretation</div><p>{_esc(d['interpretation'])}</p></div>
-        <div><div class="col-label">Likely Contribution</div><p>{contrib}</p></div>
-        <div><div class="col-label">Manager Considerations</div><p>{mgr_con}</p></div>
+      <p class="section-intro">{_esc(d['interpretation'])}</p>
+      <div class="two-col">
+        <div><div class="col-label">Likely Contribution</div><p class="col-text">{contrib}</p></div>
+        <div><div class="col-label">Manager Considerations</div><p class="col-text">{mgr_con}</p></div>
       </div>
     </div>"""
 
@@ -874,32 +1082,64 @@ def _triad_interpretation(p: dict, report: dict, pg: int) -> str:
 </div>"""
 
 
-def _role_proximity(p: dict, report: dict, pg: int) -> str:
+def _role_cluster_proximity(p: dict, report: dict, pg: int) -> list[str]:
     """
-    Role Cluster Proximity, Option F: ranked table + mini TRIAD visual.
-    Tripp: "right now a version of F inside the role proximity section will suffice."
+    Role Cluster Proximity: business-interpretation write-up matching the
+    mockup Tripp included in the revised layout doc, PLUS the TRIAD Role
+    Map moved in here per his follow-up feedback: "we have the TRIAD role
+    map image... following the two other triad graphs. It would seem to
+    work best in the role cluster proximity sub-section... Role Cluster
+    Proximity -> descriptive box like in the other areas of the report ->
+    TRIAD role map image with a figure caption -> followed by 'Location
+    on the TRIAD Role Map' etc." He noted he'll likely supply his own
+    figure-caption wording later - kept the existing caption as a
+    placeholder until he does.
+
+    Split across three pages - too much content for fewer without overflow.
+
+    DRAFT for review - not yet confirmed with Tripp as final content/format.
     """
-    employee = p.get("name","")
+    employee = p.get("name","the employee")
+    first_name = employee.split()[0] if employee else "the employee"
     t = report["triad"]
     task = t["task"]["score"]
     soc  = t["sociability"]["score"]
     dom  = t["dominance"]["score"]
 
     distances = _compute_role_distances(task, soc, dom)
-    top5      = distances[:5]
+    top5 = distances[:5]
+    top3 = distances[:3]
+    top_role = top3[0][0]
 
-    # Bar width proportional to similarity
+    sig = {name: (tc, sc2, dc) for name, tc, sc2, dc in ROLE_CLUSTERS}
+
+    fit_desc = {
+        "Coordinator": "Primary match. Balances people and process, links subteams and functions, and facilitates communication and coordination.",
+        "Social": "Secondary alignment on sociability. Less task-structured and more relationship-driven, oriented around morale and connection rather than process.",
+        "Problem Solver": "Partial overlap on task drive. More independent and analytical, oriented toward resolving issues directly rather than through group coordination.",
+        "Team Leader": "Overlaps on task orientation and dominance. Directive and outcome-focused, leading more through authority and structure than through relationship-building.",
+        "Task Motivator": "Overlaps on dominance and task focus. Energizes others toward outcomes, pushing pace and progress more than facilitating consensus.",
+    }
+
+    sig_rows = ""
+    for name, sim, fit in top3:
+        tc, sc2, dc = sig.get(name, (0,0,0))
+        sig_rows += f"""<tr>
+      <td style="font-weight:700;color:{BLUE}">{_esc(name)}</td>
+      <td style="font-size:9pt">Task {tc:+.2f} &middot; Soc {sc2:+.2f} &middot; Dom {dc:+.2f}</td>
+      <td style="font-size:9.5pt">{fit_desc.get(name, "")}</td>
+    </tr>"""
+
     def bar_w(sim): return max(4, int(sim * 80))
-
-    rows = ""
+    match_rows = ""
     for i,(role,sim,fit) in enumerate(top5):
         rank = i + 1
-        star = "★ " if rank == 1 else f"{rank} "
+        star = "&#9733; " if rank == 1 else f"{rank} "
         pct  = f"{sim*100:.0f}%"
         fcolor = _fit_color(fit)
         bw = bar_w(sim)
         cls = "rank-1" if rank == 1 else ""
-        rows += f"""<tr>
+        match_rows += f"""<tr>
       <td><span class="{cls}">{star}</span></td>
       <td class="{cls}">{_esc(role)}</td>
       <td>{pct}</td>
@@ -909,34 +1149,89 @@ def _role_proximity(p: dict, report: dict, pg: int) -> str:
 
     mini_svg = _role_proximity_svg(task, soc, dom)
 
-    return f"""<div class="page content">
+    page1 = f"""<div class="page content">
   <div class="eyebrow">TRIAD Assessment</div>
-  <h2>TRIAD Role Navigator</h2>
-  <p class="subtitle">{_esc(employee)}'s location in the TRIAD role space. The closer {_esc(employee)} is to a role, the more naturally they are likely to exhibit the behaviors associated with that role.</p>
+  <h2>Role Cluster Proximity</h2>
+  <p class="subtitle" style="font-style:italic">Format confirmed with Tripp. Interpretation text below (Business Interpretation, Strengths, Development Areas, Business Applications) is still draft, pending his review.</p>
 
-  <div class="proximity-grid">
-    <div class="ternary-map">{mini_svg}</div>
-    <div class="proximity-right">
-      <div class="proximity-table-label">Closest Role Matches</div>
-      <table class="proximity-table">
-        <thead>
-          <tr>
-            <th style="width:44px">Rank</th>
-            <th style="width:160px">Role</th>
-            <th style="width:90px">Similarity</th>
-            <th style="width:140px">Fit</th>
-            <th style="width:100px">Fit Level</th>
-          </tr>
-        </thead>
-        <tbody>{rows}</tbody>
-      </table>
-      <p style="font-size:8pt;color:{TEXT_LIGHT};margin-top:10px;font-style:italic">
-        Based on {_esc(employee)}'s combined Task Orientation, Sociability, and Dominance scores.
-      </p>
-    </div>
+  <div class="callout"><p>This section compares the employee's TRIAD profile with 13 TRIAD team role profiles to identify the roles that most closely align with their unique combination of Task Orientation, Sociability, and Dominance. These results highlight likely role strengths, potential development areas, and practical applications in the workplace.</p></div>
+
+  <div class="ternary-map">
+    <div class="glance-card-title" style="margin-bottom:6px">TRIAD Role Map</div>
+    <p class="fig-caption">Shows the employee's location within the TRIAD role space relative to the 13 TRIAD team role profiles.</p>
+    {mini_svg}
   </div>
+
+  <div class="proximity-table-label" style="margin-top:16px">Closest Role Matches</div>
+  <table class="proximity-table" style="margin-bottom:6px">
+    <thead>
+      <tr>
+        <th style="width:44px">Rank</th>
+        <th style="width:160px">Role</th>
+        <th style="width:90px">Similarity</th>
+        <th style="width:140px">Fit</th>
+        <th style="width:100px">Fit Level</th>
+      </tr>
+    </thead>
+    <tbody>{match_rows}</tbody>
+  </table>
+  <p style="font-size:9pt;color:{TEXT_LIGHT};font-style:italic">
+    Based on {_esc(employee)}'s combined Task Orientation, Sociability, and Dominance scores.
+  </p>
+
   {_footer(employee, pg)}
 </div>"""
+
+    page2 = f"""<div class="page content">
+  <div class="eyebrow">TRIAD Assessment</div>
+
+  <h3 class="sub-h" style="margin-top:0">Location on the TRIAD Role Map</h3>
+  <p>This coordinate (Task Orientation {task:+.2f}, Sociability {soc:+.2f}, Dominance {dom:+.2f}) plots in the upper-social region of the TRIAD space, reflecting a combination of strong sociability, moderate task focus, and mild dominance. That region aligns most closely with the {_esc(top_role)} cluster, with secondary proximity to the {_esc(top3[1][0])} and {_esc(top3[2][0])} profiles.</p>
+
+  <table class="proximity-table" style="margin:14px 0 18px">
+    <thead>
+      <tr>
+        <th style="width:130px">Role Cluster</th>
+        <th style="width:170px">TRIAD Signature</th>
+        <th>Fit Description</th>
+      </tr>
+    </thead>
+    <tbody>{sig_rows}</tbody>
+  </table>
+
+  <h3 class="sub-h">Business Interpretation</h3>
+  <p>{_esc(first_name)} is a relationship-driven task linker: someone who organizes work effectively while maintaining strong interpersonal connections. {_esc(first_name)} balances getting things done with keeping people engaged, leaning on trust and communication rather than authority to move work forward.</p>
+
+  <div class="two-col" style="margin-top:16px">
+    <div>
+      <div class="col-label">Strengths</div>
+      <ul class="mag-list">
+        <li><span class="bullet">&rsaquo;</span><span>Integrator and communicator: bridges departments and maintains flow</span></li>
+        <li><span class="bullet">&rsaquo;</span><span>High accountability: reliable follow-through and attention to quality</span></li>
+        <li><span class="bullet">&rsaquo;</span><span>Collaborative influence: aligns others through warmth and subtle authority</span></li>
+        <li><span class="bullet">&rsaquo;</span><span>Morale builder: positive presence that stabilizes teams</span></li>
+      </ul>
+    </div>
+    <div>
+      <div class="col-label">Potential Development Areas</div>
+      <ul class="mag-list">
+        <li><span class="bullet">&rsaquo;</span><span>May avoid direct confrontation; could strengthen assertive decision-making</span></li>
+        <li><span class="bullet">&rsaquo;</span><span>Risk of over-supporting others at the expense of personal bandwidth</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="mag-sub-label" style="margin-top:16px">Business Applications</div>
+  <ul class="mag-list">
+    <li><span class="bullet">&rsaquo;</span><span><strong>Leadership:</strong> Facilitative leader guiding collaboration across functions</span></li>
+    <li><span class="bullet">&rsaquo;</span><span><strong>Team Dynamics:</strong> Acts as the social glue connecting strategy and execution</span></li>
+    <li><span class="bullet">&rsaquo;</span><span><strong>Client Relations:</strong> Excels at relationship-based selling or account management</span></li>
+    <li><span class="bullet">&rsaquo;</span><span><strong>Project/Operations:</strong> Effective in coordination, scheduling, and delivery roles</span></li>
+  </ul>
+
+  {_footer(employee, pg + 1)}
+</div>"""
+    return [page1, page2]
 
 
 def _manager_action_guide(p: dict, report: dict, pg: int) -> list[str]:
@@ -949,8 +1244,8 @@ def _manager_action_guide(p: dict, report: dict, pg: int) -> list[str]:
     employee = p.get("name","")
     mag = report.get("manager_action_guide", {})
 
-    def section(title, narrative, bullets_dict):
-        html = f'<div class="mag-section"><div class="mag-section-title">{_esc(title)}</div>'
+    def section(title, narrative, bullets_dict, extra_style=""):
+        html = f'<div class="mag-section" style="{extra_style}"><div class="mag-section-title">{_esc(title)}</div>'
         if narrative:
             html += f'<p class="mag-narrative">{_esc(narrative)}</p>'
         for sub_label, items in bullets_dict.items():
@@ -969,16 +1264,17 @@ def _manager_action_guide(p: dict, report: dict, pg: int) -> list[str]:
     lead = mag.get("leadership_summary", {})
 
     eyebrow = '<div class="eyebrow">Manager Action Guide</div>'
-    subtitle = '<p class="subtitle">Practical leadership strategies that help managers communicate more effectively, support employee development, and maximise workplace performance.</p>'
+    subtitle = '<div class="callout"><p>This section translates the assessment insights into practical leadership strategies that help managers communicate more effectively, support employee development, and maximize workplace performance.</p></div>'
 
     page1 = f"""<div class="page content">
   {eyebrow}
   {subtitle}
   {section("Communication Style",
     comm.get("narrative",""),
-    {"Manager Recommendations": comm.get("recommendations",[])}
+    {"Manager Recommendations": comm.get("recommendations",[])},
+    extra_style="margin-bottom:36px"
   )}
-  {section("Motivators &amp; Stressors",
+  {section("Motivators & Stressors",
     mot.get("narrative",""),
     {"Key Motivators": mot.get("motivators",[]),
      "Potential Stressors": mot.get("stressors",[])}
@@ -993,7 +1289,7 @@ def _manager_action_guide(p: dict, report: dict, pg: int) -> list[str]:
     {"Best Suited For": dele.get("best_suited_for",[]),
      "Management Recommendations": dele.get("recommendations",[])}
   )}
-  {section("Leadership Summary &amp; Action Plan",
+  {section("Management Summary & Action Plan",
     lead.get("narrative",""),
     {"Strengths to Leverage": lead.get("strengths",[]),
      "Potential Watch Points": lead.get("watch_points",[]),
@@ -1017,17 +1313,49 @@ def generate_pdf(participant: dict[str, Any], report: dict[str, Any]) -> bytes:
     font_css = _font_css()
     css      = _css(font_css)
 
+    n_domains = len(report["domains"])
+
+    # First pass: compute page numbers for the table of contents.
+    # Page sequence: cover(1), toc(2), introduction x2 (3-4),
+    # personality section intro+snapshot (merged), glance x2, N domains,
+    # triad section intro+snapshot (merged), triad glance x2,
+    # triad interpretation, role proximity, N mag pages.
+    pg = 3
+    toc_entries: list[tuple[str, int, str]] = []
+    toc_entries.append(("Introduction to the Work Style Report", pg,
+        "An overview of the Personality and TRIAD frameworks and how this report should be used."))
+    pg += 2  # two introduction pages
+    toc_entries.append(("Personality Assessment", pg,
+        "The employee's results across the five major personality domains and their underlying facets."))
+    pg += 3  # section intro+snapshot (merged) + 2 glance pages
+    pg += n_domains
+    toc_entries.append(("TRIAD Assessment", pg,
+        "The employee's Task Orientation, Sociability, and Dominance, plus closest role cluster matches."))
+    pg += 6  # section intro+snapshot (merged) + 2 glance pages + interpretation + 2 role cluster proximity pages (map moved in here per Tripp)
+    toc_entries.append(("Manager Action Guide", pg,
+        "Practical strategies for communication, motivation, delegation, and leadership."))
+    pg += 2  # two manager action guide pages
+
     pg = 1
     pages = []
-    pages.append(_cover(participant, pg));                    pg += 1
-    pages.append(_welcome(participant, pg));                  pg += 1
-    pages.append(_exec_summary(participant, report, pg));     pg += 1
-    pages.append(_glance(participant, report, pg));           pg += 1
-    for domain in report["domains"]:
-        pages.append(_domain(participant, domain, pg));       pg += 1
-    pages.append(_triad_profile(participant, report, pg));    pg += 1
-    pages.append(_triad_interpretation(participant, report, pg)); pg += 1
-    pages.append(_role_proximity(participant, report, pg));   pg += 1
+    pages.append(_cover(participant, pg));                        pg += 1
+    pages.append(_toc(participant, pg, toc_entries));              pg += 1
+    pages.append(_introduction_1(participant, pg));                pg += 1
+    pages.append(_introduction_2(participant, pg));                pg += 1
+    pages.append(_personality_section_intro(participant, report, pg)); pg += 1
+    glance_pages = _glance(participant, report, pg)
+    for gp in glance_pages:
+        pages.append(gp); pg += 1
+    for i, domain in enumerate(report["domains"]):
+        pages.append(_domain(participant, domain, pg, first=(i==0))); pg += 1
+    pages.append(_triad_section_intro(participant, report, pg));   pg += 1
+    triad_profile_pages = _triad_profile(participant, report, pg)
+    for tp in triad_profile_pages:
+        pages.append(tp); pg += 1
+    pages.append(_triad_interpretation(participant, report, pg));  pg += 1
+    rcp_pages = _role_cluster_proximity(participant, report, pg)
+    for rp in rcp_pages:
+        pages.append(rp); pg += 1
     mag_pages = _manager_action_guide(participant, report, pg)
     for mp in mag_pages:
         pages.append(mp); pg += 1
