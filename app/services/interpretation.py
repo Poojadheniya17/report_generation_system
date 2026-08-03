@@ -18,6 +18,7 @@ from app.services.interpretation_prompt import (
     SYSTEM_PROMPT,
     triad_direction_label,
 )
+from app.services.pdf_generator import ROLE_CLUSTERS, _compute_role_distances
 
 DOMAIN_ORDER = [
     "Extraversion", "Agreeableness", "Conscientiousness",
@@ -70,6 +71,35 @@ def build_user_message(participant: dict[str, Any], scores: dict[str, Any]) -> s
         },
         "domains": [],
     }
+
+    # Role cluster proximity data - top 3 nearest clusters with their TRIAD
+    # signature and similarity, so the model can write a grounded, specific
+    # interpretation instead of a generic description of the cluster.
+    task_s = triad["task"]["score"]
+    soc_s  = triad["sociability"]["score"]
+    dom_s  = triad["dominance"]["score"]
+    distances = _compute_role_distances(task_s, soc_s, dom_s)
+    sig = {name: (tc, sc2, dc) for name, tc, sc2, dc in ROLE_CLUSTERS}
+    payload["role_cluster_proximity"] = {
+        "employee_scores": {
+            "task": round(task_s, 2),
+            "sociability": round(soc_s, 2),
+            "dominance": round(dom_s, 2),
+        },
+        "top_matches": [
+            {
+                "role": role,
+                "similarity_pct": round(sim * 100),
+                "fit_label": fit,
+                "triad_signature": {
+                    "task": sig[role][0],
+                    "sociability": sig[role][1],
+                    "dominance": sig[role][2],
+                },
+            }
+            for role, sim, fit in distances[:3]
+        ],
+    }
     for d in scores["bfi2"]["domains"]:
         dom = {
             "name":  DISPLAY_NAMES[d["name"]],
@@ -116,7 +146,7 @@ def parse_model_json(raw_text: str) -> dict:
 
 def validate_report(report: dict) -> None:
     # Top level
-    for key in ("executive_summary","triad","domains","manager_action_guide"):
+    for key in ("executive_summary","triad","domains","manager_action_guide","role_cluster_proximity"):
         if key not in report:
             raise InterpretationError(f"Missing top-level key: {key}")
 
@@ -166,6 +196,28 @@ def validate_report(report: dict) -> None:
                 raise InterpretationError(f"manager_action_guide.{section}.{fld} is empty")
             if isinstance(val, list) and len(val) == 0:
                 raise InterpretationError(f"manager_action_guide.{section}.{fld} has no items")
+
+    # Role Cluster Proximity
+    rcp = report["role_cluster_proximity"]
+    if not rcp.get("business_interpretation","").strip():
+        raise InterpretationError("role_cluster_proximity.business_interpretation is empty")
+    word_count = len(rcp["business_interpretation"].split())
+    if not (60 <= word_count <= 180):
+        raise InterpretationError(
+            f"role_cluster_proximity.business_interpretation should be ~75-150 words, got {word_count}"
+        )
+    strengths = rcp.get("strengths", [])
+    if not (4 <= len(strengths) <= 6):
+        raise InterpretationError(f"role_cluster_proximity.strengths should have 4-6 items, got {len(strengths)}")
+    for s in strengths:
+        if not s.get("title","").strip() or not s.get("explanation","").strip():
+            raise InterpretationError("role_cluster_proximity.strengths item missing title/explanation")
+    dev_areas = rcp.get("development_areas", [])
+    if not (3 <= len(dev_areas) <= 5):
+        raise InterpretationError(f"role_cluster_proximity.development_areas should have 3-5 items, got {len(dev_areas)}")
+    for d in dev_areas:
+        if not d.get("title","").strip() or not d.get("explanation","").strip():
+            raise InterpretationError("role_cluster_proximity.development_areas item missing title/explanation")
 
 
 def inject_verified_numbers(report: dict, scores: dict[str, Any]) -> dict:

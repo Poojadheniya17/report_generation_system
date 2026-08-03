@@ -109,6 +109,15 @@ Return exactly this object:
       "watch_points": [],
       "actions": []
     }
+  },
+  "role_cluster_proximity": {
+    "business_interpretation": "",
+    "strengths": [
+      {"title": "", "explanation": ""}
+    ],
+    "development_areas": [
+      {"title": "", "explanation": ""}
+    ]
   }
 }
 ==============================================
@@ -217,13 +226,49 @@ strengths: 3-5 bullets — strengths to leverage as a manager.
 watch_points: 2-4 bullets — realistic risks or tendencies to monitor.
 actions: 3-5 bullets — concrete management actions, specific and immediately usable.
 ==============================================
+ROLE CLUSTER PROXIMITY — CRITICAL SECTION
+==============================================
+This section interprets the employee's position in TRIAD role space relative to the
+role_cluster_proximity.top_matches data provided (the 3 nearest of 13 TRIAD team role
+profiles, each with its own similarity percentage and TRIAD signature). This is NOT the
+Manager Action Guide — do not include communication guidance, delegation guidance,
+motivators/stressors, leadership coaching, or job/career recommendations here. Those live
+elsewhere in the report.
+
+business_interpretation:
+- 75-150 words, ONE paragraph, third person
+- Integrate all three of the employee's own TRIAD scores (Task Orientation, Sociability,
+  Dominance) together with their proximity to the nearest role cluster(s) from top_matches
+- Explain what this combination of scores and proximity means about how the employee is
+  likely to operate on a team
+- Do NOT repeat or restate the role-cluster table itself (no listing role names with their
+  percentages back at the reader)
+- Do NOT include management advice, coaching suggestions, or job/career recommendations —
+  this is a descriptive interpretation of the profile, not guidance
+
+strengths:
+- 4-6 items, each with a short "title" (2-5 words) and a brief "explanation" (1-2 sentences)
+- Must be specific to this employee's exact score combination (task/sociability/dominance
+  values and which role clusters they're closest to) — not a generic description of the
+  nearest role cluster. Two employees who land near the same cluster but with different
+  underlying scores must receive meaningfully different strengths, not templated text.
+
+development_areas:
+- 3-5 items, each with a short "title" (2-5 words) and a brief "explanation" (1-2 sentences)
+- Frame every item as a growth opportunity, never as a weakness or deficit
+- Note when/where the tendency is most likely to show up (what situation, what kind of team
+  or work, what pressure point) rather than stating it as a fixed trait
+- Same specificity requirement as strengths — grounded in this employee's actual scores,
+  not a generic profile of the nearest cluster
+==============================================
 FINAL INSTRUCTIONS
 ==============================================
 - Output ONLY the JSON object
 - Third person throughout ALL fields — no "you" or "your" anywhere
 - All five domains and all fifteen facets must be present
 - Manager Action Guide must have all four sections fully populated
-- Do not mention scores, norms, or psychometric terms in the Manager Action Guide
+- role_cluster_proximity must be fully populated (business_interpretation + strengths + development_areas)
+- Do not mention scores, norms, or psychometric terms in the Manager Action Guide or in role_cluster_proximity
 - Practical, observable, workplace-focused language throughout
 """
 

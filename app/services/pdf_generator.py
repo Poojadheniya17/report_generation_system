@@ -489,7 +489,7 @@ body {{ font-family: 'RF', Arial, sans-serif; color: {TEXT_DARK}; font-size: 11p
 
 /* ── CONTENT ── */
 .content {{ padding: 40px 56px 58px; }}
-.eyebrow {{ font-size: 11pt; font-weight: 700; letter-spacing: 2px; color: {BLUE};
+.eyebrow {{ font-size: 19pt; font-weight: 700; letter-spacing: 2px; color: {BLUE};
             text-transform: uppercase; border-bottom: 1.5px solid {BLUE};
             padding-bottom: 9px; margin-bottom: 22px; }}
 h2 {{ font-size: 12pt; font-weight: 700; color: {BLUE}; margin: 20px 0 8px; }}
@@ -565,6 +565,8 @@ p {{ line-height: 1.7; margin-bottom: 10px; font-size: 10.5pt; }}
 .bar-level-low    {{ color: {LEVEL_LOW}; }}
 .scale-row {{ display: flex; justify-content: space-between; padding: 4px 0 0;
               font-size: 8pt; color: {TEXT_MID}; margin-left: 168px; width: 340px; }}
+.domain-scale-row {{ display: flex; justify-content: space-between; padding: 4px 0 0;
+                     font-size: 8pt; color: {TEXT_MID}; width: 500px; }}
 .radar-center {{ display: flex; justify-content: center; }}
 
 /* ── GAUGE ── */
@@ -602,6 +604,12 @@ p {{ line-height: 1.7; margin-bottom: 10px; font-size: 10.5pt; }}
   background: {BG_CARD};
   border-radius: 6px;
   padding: 10px 12px;
+}}
+.full-box {{
+  background: {BG_CARD};
+  border-radius: 6px;
+  padding: 14px 18px;
+  margin-bottom: 10px;
 }}
 .col-label {{ font-size: 7pt; font-weight: 700; letter-spacing: 1.5px; color: {BLUE};
               text-transform: uppercase; margin-bottom: 5px; }}
@@ -742,8 +750,7 @@ def _toc(p: dict, pg: int, entries: list[tuple[str, int, str]]) -> str:
     return f"""<div class="page content">
   <div class="eyebrow">What's in the Work Style Report?</div>
   <div class="callout"><p>This report is organized into four sections that help managers and team leaders understand employee work style, interpret assessment results, and apply practical leadership strategies.</p></div>
-  <h2 style="margin-top:22px">Table of Contents</h2>
-  <div class="toc-list">{rows}</div>
+  <div class="toc-list" style="margin-top:22px">{rows}</div>
   {_footer(employee, pg)}
 </div>"""
 
@@ -776,7 +783,6 @@ def _introduction_2(p: dict, pg: int) -> str:
     """Introduction to the Work Style Report, page 2 of 2."""
     employee = p.get("name","the employee")
     return f"""<div class="page content">
-  <div class="eyebrow">Introduction to the Work Style Report</div>
 
   <p>There are two points to consider in interpreting the personality assessment. First, there is no one "good" or "bad" personality profile; rather, each pattern offers strengths as well as potential developmental opportunities depending on the work and task setting and role requirements. Second, each of the broad Five Factors is also broken down into lower-level or more specific personality facets that provide more granular detail into the person's behavioral tendencies. These are provided in the following assessment report.</p>
 
@@ -823,7 +829,6 @@ def _personality_section_intro(p: dict, report: dict, pg: int) -> str:
   <div class="report-transition">
     <h3 class="sub-h">Employee Snapshot</h3>
     <div class="callout"><p>This snapshot provides a concise, high-level summary of the employee's overall work style. It highlights the employee's most prominent workplace characteristics before exploring the detailed assessment results that follow.</p></div>
-    <h3 class="sub-h" style="margin-top:22px">Work Style Summary</h3>
     {summary_html}
   </div>
 
@@ -872,7 +877,6 @@ def _triad_section_intro(p: dict, report: dict, pg: int) -> str:
   <div class="report-transition">
     <h3 class="sub-h">Employee Snapshot</h3>
     <div class="callout"><p>This snapshot provides a high-level overview of the employee's workplace contribution profile by integrating the Personality and TRIAD assessment results. It summarizes how the employee is likely to contribute within a team, collaborate with others, and add value in the workplace before exploring the detailed TRIAD interpretations that follow.</p></div>
-    <h3 class="sub-h">Workplace Contribution Profile</h3>
     <p class="lead">{bridge_p1}</p>
     <p class="lead">{bridge_p2}</p>
   </div>
@@ -898,35 +902,26 @@ def _glance(p: dict, report: dict, pg: int) -> list[str]:
     </div>"""
 
     page1 = f"""<div class="page content">
-  <div class="eyebrow">Personality Assessment</div>
   <h2>Personality at a Glance</h2>
-  <div class="callout-spacious"><p>The following visualizations provide a high-level summary of the employee's assessment results before the detailed interpretations that follow.</p></div>
-  <h3 class="sub-h" style="margin-top:28px">How to Interpret the Graphs</h3>
-  <p class="subtitle" style="margin-bottom:18px">Each score is compared to a normative sample drawn from the general population. The norm represents the average score of the general population and serves as a reference point for interpreting the employee's results.</p>
-  <p class="subtitle">Scores above or below the norm indicate differences in natural behavioral tendencies; they do not necessarily represent a "more positive" or "more negative" score, as every profile has its own strengths and potential development areas.</p>
-  {_footer(employee, pg)}
-</div>"""
+  <div class="callout-spacious" style="padding:14px 18px;margin-top:10px;margin-bottom:10px"><p>The following visualizations provide a high-level summary of the employee's assessment results before the detailed interpretations that follow.</p></div>
+  <h3 class="sub-h" style="margin-top:10px;margin-bottom:4px">How to Interpret the Graphs</h3>
+  <p class="subtitle" style="margin-bottom:6px">Each score is compared to a normative sample drawn from the general population. Scores above or below the norm indicate differences in natural behavioral tendencies, not a "more positive" or "more negative" result.</p>
 
-    page2 = f"""<div class="page content">
-  <div class="eyebrow">Personality Assessment</div>
-  <div class="callout" style="padding:10px 16px;margin-top:8px"><p>Visual summary of the employee's personality across the five major personality domains.</p></div>
-  <div class="fig-captions-label">Figure Captions</div>
-
-  <div class="glance-card" style="margin-bottom:12px">
+  <div class="glance-card" style="margin-bottom:10px;padding:16px 20px">
     <div class="glance-card-title">Score vs Norm</div>
     <p class="fig-caption">Compares the employee's score on each personality domain to the average score (norm) of the general population.</p>
     {rows}
     <div class="scale-row"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>
   </div>
 
-  <div class="glance-card">
+  <div class="glance-card" style="padding:12px 20px">
     <div class="glance-card-title">Profile Shape</div>
     <p class="fig-caption">Highlights the relative pattern across the five personality domains, making it easier to identify the employee's strongest and weakest behavioral tendencies at a glance.</p>
-    <div class="radar-center">{_radar_svg(domains, size=290)}</div>
+    <div class="radar-center">{_radar_svg(domains, size=220)}</div>
   </div>
-  {_footer(employee, pg + 1)}
+  {_footer(employee, pg)}
 </div>"""
-    return [page1, page2]
+    return [page1]
 
 
 def _domain(p: dict, domain: dict, pg: int, first: bool = False) -> str:
@@ -958,7 +953,6 @@ def _domain(p: dict, domain: dict, pg: int, first: bool = False) -> str:
     </div>"""
 
     return f"""<div class="page content">
-  <div class="eyebrow">Personality Assessment</div>
   {intro_note}
   <div class="domain-header">
     <div class="domain-title-row">
@@ -966,6 +960,7 @@ def _domain(p: dict, domain: dict, pg: int, first: bool = False) -> str:
       <span class="level-badge badge-{lc}">{_esc(level)}</span>
     </div>
     <div class="domain-bar">{_bfi_bar_svg(score, norm, w=500, h=32)}</div>
+    <div class="domain-scale-row"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>
   </div>
   <p class="section-intro">{_esc(domain['meaning'])}</p>
   <div class="two-col">
@@ -1010,35 +1005,26 @@ def _triad_profile(p: dict, report: dict, pg: int) -> list[str]:
     </div>'''
 
     page1 = f"""<div class="page content">
-  <div class="eyebrow">TRIAD Assessment</div>
   <h2>TRIAD at a Glance</h2>
-  <div class="callout-spacious"><p>The following visualizations provide a high-level summary of the employee's assessment results before the interpretations that follow.</p></div>
-  <h3 class="sub-h" style="margin-top:28px">How to Interpret the Graphs</h3>
-  <p class="subtitle" style="margin-bottom:18px">The TRIAD profile summarizes {_esc(employee)}'s natural tendencies toward Task Orientation, Sociability, and Dominance, a snapshot of how they are most likely to contribute within a team.</p>
-  <p class="subtitle">Employees rarely fit a single role perfectly; instead, most display characteristics of multiple nearby role profiles, allowing for flexibility across different teams and work situations.</p>
-  {_footer(employee, pg)}
-</div>"""
+  <div class="callout-spacious" style="padding:14px 18px;margin-top:10px;margin-bottom:10px"><p>The following visualizations provide a high-level summary of the employee's assessment results before the interpretations that follow.</p></div>
+  <h3 class="sub-h" style="margin-top:10px;margin-bottom:4px">How to Interpret the Graphs</h3>
+  <p class="subtitle" style="margin-bottom:6px">The TRIAD profile summarizes {_esc(employee)}'s natural tendencies toward Task Orientation, Sociability, and Dominance, a snapshot of how they are most likely to contribute within a team.</p>
 
-    page2 = f"""<div class="page content">
-  <div class="eyebrow">TRIAD Assessment</div>
-  <div class="callout" style="padding:10px 16px;margin-top:8px"><p>Visual summary of the employee's natural tendencies toward Task Orientation, Sociability, and Dominance.</p></div>
-  <div class="fig-captions-label">Figure Captions</div>
-
-  <div class="glance-card">
+  <div class="glance-card" style="margin-bottom:10px;padding:14px 20px">
     <div class="glance-card-title">TRIAD Snapshot</div>
     <p class="fig-caption">Provides a quick visual comparison of the employee's standing across the three TRIAD dimensions.</p>
     <div class="gauge-row">{gauges}</div>
   </div>
 
-  <div class="glance-card">
+  <div class="glance-card" style="padding:14px 20px">
     <div class="glance-card-title">TRIAD Scores</div>
     <p class="fig-caption">Displays the employee's precise score on each TRIAD dimension relative to the full assessment scale.</p>
     {rows}
   </div>
 
-  {_footer(employee, pg + 1)}
+  {_footer(employee, pg)}
 </div>"""
-    return [page1, page2]
+    return [page1]
 
 
 def _triad_interpretation(p: dict, report: dict, pg: int) -> str:
@@ -1073,10 +1059,6 @@ def _triad_interpretation(p: dict, report: dict, pg: int) -> str:
     </div>"""
 
     return f"""<div class="page content">
-  <div class="eyebrow">TRIAD Assessment</div>
-  <p class="subtitle">This report interprets team role tendencies using the TRIAD Model
-  (Driskell, Driskell, Burke &amp; Salas, 2017), which defines three core behavioral
-  dimensions that together describe team role behavior.</p>
   {blocks}
   {_footer(employee, pg)}
 </div>"""
@@ -1091,16 +1073,18 @@ def _role_cluster_proximity(p: dict, report: dict, pg: int) -> list[str]:
     work best in the role cluster proximity sub-section... Role Cluster
     Proximity -> descriptive box like in the other areas of the report ->
     TRIAD role map image with a figure caption -> followed by 'Location
-    on the TRIAD Role Map' etc." He noted he'll likely supply his own
-    figure-caption wording later - kept the existing caption as a
-    placeholder until he does.
+    on the TRIAD Role Map' etc." Descriptive box + figure caption wording
+    supplied by Tripp directly.
 
-    Split across three pages - too much content for fewer without overflow.
+    Business Interpretation / Strengths / Development Areas are AI-generated
+    per employee (report["role_cluster_proximity"]) - see
+    interpretation_prompt.py's ROLE CLUSTER PROXIMITY section for the
+    generation rules. Business Applications was dropped per Tripp's request
+    (redundant with Business Interpretation).
 
-    DRAFT for review - not yet confirmed with Tripp as final content/format.
+    Split across two pages - too much content for one without overflow.
     """
     employee = p.get("name","the employee")
-    first_name = employee.split()[0] if employee else "the employee"
     t = report["triad"]
     task = t["task"]["score"]
     soc  = t["sociability"]["score"]
@@ -1150,9 +1134,7 @@ def _role_cluster_proximity(p: dict, report: dict, pg: int) -> list[str]:
     mini_svg = _role_proximity_svg(task, soc, dom)
 
     page1 = f"""<div class="page content">
-  <div class="eyebrow">TRIAD Assessment</div>
   <h2>Role Cluster Proximity</h2>
-  <p class="subtitle" style="font-style:italic">Format confirmed with Tripp. Interpretation text below (Business Interpretation, Strengths, Development Areas, Business Applications) is still draft, pending his review.</p>
 
   <div class="callout"><p>This section compares the employee's TRIAD profile with 13 TRIAD team role profiles to identify the roles that most closely align with their unique combination of Task Orientation, Sociability, and Dominance. These results highlight likely role strengths, potential development areas, and practical applications in the workplace.</p></div>
 
@@ -1182,8 +1164,17 @@ def _role_cluster_proximity(p: dict, report: dict, pg: int) -> list[str]:
   {_footer(employee, pg)}
 </div>"""
 
+    rcp = report["role_cluster_proximity"]
+    strengths_html = "".join(
+        f'<li><span class="bullet">&rsaquo;</span><span><strong>{_esc(s["title"])}:</strong> {_esc(s["explanation"])}</span></li>'
+        for s in rcp["strengths"]
+    )
+    dev_html = "".join(
+        f'<li><span class="bullet">&rsaquo;</span><span><strong>{_esc(d["title"])}:</strong> {_esc(d["explanation"])}</span></li>'
+        for d in rcp["development_areas"]
+    )
+
     page2 = f"""<div class="page content">
-  <div class="eyebrow">TRIAD Assessment</div>
 
   <h3 class="sub-h" style="margin-top:0">Location on the TRIAD Role Map</h3>
   <p>This coordinate (Task Orientation {task:+.2f}, Sociability {soc:+.2f}, Dominance {dom:+.2f}) plots in the upper-social region of the TRIAD space, reflecting a combination of strong sociability, moderate task focus, and mild dominance. That region aligns most closely with the {_esc(top_role)} cluster, with secondary proximity to the {_esc(top3[1][0])} and {_esc(top3[2][0])} profiles.</p>
@@ -1200,38 +1191,30 @@ def _role_cluster_proximity(p: dict, report: dict, pg: int) -> list[str]:
   </table>
 
   <h3 class="sub-h">Business Interpretation</h3>
-  <p>{_esc(first_name)} is a relationship-driven task linker: someone who organizes work effectively while maintaining strong interpersonal connections. {_esc(first_name)} balances getting things done with keeping people engaged, leaning on trust and communication rather than authority to move work forward.</p>
+  <p>{_esc(rcp["business_interpretation"])}</p>
 
-  <div class="two-col" style="margin-top:16px">
-    <div>
-      <div class="col-label">Strengths</div>
-      <ul class="mag-list">
-        <li><span class="bullet">&rsaquo;</span><span>Integrator and communicator: bridges departments and maintains flow</span></li>
-        <li><span class="bullet">&rsaquo;</span><span>High accountability: reliable follow-through and attention to quality</span></li>
-        <li><span class="bullet">&rsaquo;</span><span>Collaborative influence: aligns others through warmth and subtle authority</span></li>
-        <li><span class="bullet">&rsaquo;</span><span>Morale builder: positive presence that stabilizes teams</span></li>
-      </ul>
-    </div>
-    <div>
-      <div class="col-label">Potential Development Areas</div>
-      <ul class="mag-list">
-        <li><span class="bullet">&rsaquo;</span><span>May avoid direct confrontation; could strengthen assertive decision-making</span></li>
-        <li><span class="bullet">&rsaquo;</span><span>Risk of over-supporting others at the expense of personal bandwidth</span></li>
-      </ul>
-    </div>
+  <div class="full-box" style="margin-top:16px">
+    <div class="col-label">Strengths</div>
+    <ul class="mag-list">
+      {strengths_html}
+    </ul>
   </div>
-
-  <div class="mag-sub-label" style="margin-top:16px">Business Applications</div>
-  <ul class="mag-list">
-    <li><span class="bullet">&rsaquo;</span><span><strong>Leadership:</strong> Facilitative leader guiding collaboration across functions</span></li>
-    <li><span class="bullet">&rsaquo;</span><span><strong>Team Dynamics:</strong> Acts as the social glue connecting strategy and execution</span></li>
-    <li><span class="bullet">&rsaquo;</span><span><strong>Client Relations:</strong> Excels at relationship-based selling or account management</span></li>
-    <li><span class="bullet">&rsaquo;</span><span><strong>Project/Operations:</strong> Effective in coordination, scheduling, and delivery roles</span></li>
-  </ul>
 
   {_footer(employee, pg + 1)}
 </div>"""
-    return [page1, page2]
+
+    page3 = f"""<div class="page content">
+
+  <div class="full-box">
+    <div class="col-label">Potential Development Areas</div>
+    <ul class="mag-list">
+      {dev_html}
+    </ul>
+  </div>
+
+  {_footer(employee, pg + 2)}
+</div>"""
+    return [page1, page2, page3]
 
 
 def _manager_action_guide(p: dict, report: dict, pg: int) -> list[str]:
@@ -1283,7 +1266,6 @@ def _manager_action_guide(p: dict, report: dict, pg: int) -> list[str]:
 </div>"""
 
     page2 = f"""<div class="page content">
-  {eyebrow}
   {section("Delegation Guide",
     dele.get("narrative",""),
     {"Best Suited For": dele.get("best_suited_for",[]),
@@ -1327,11 +1309,11 @@ def generate_pdf(participant: dict[str, Any], report: dict[str, Any]) -> bytes:
     pg += 2  # two introduction pages
     toc_entries.append(("Personality Assessment", pg,
         "The employee's results across the five major personality domains and their underlying facets."))
-    pg += 3  # section intro+snapshot (merged) + 2 glance pages
+    pg += 2  # section intro+snapshot (merged) + 1 glance page (charts+text merged)
     pg += n_domains
     toc_entries.append(("TRIAD Assessment", pg,
         "The employee's Task Orientation, Sociability, and Dominance, plus closest role cluster matches."))
-    pg += 6  # section intro+snapshot (merged) + 2 glance pages + interpretation + 2 role cluster proximity pages (map moved in here per Tripp)
+    pg += 6  # section intro+snapshot (merged) + 1 glance page (charts+text merged) + interpretation + 3 role cluster proximity pages
     toc_entries.append(("Manager Action Guide", pg,
         "Practical strategies for communication, motivation, delegation, and leadership."))
     pg += 2  # two manager action guide pages
