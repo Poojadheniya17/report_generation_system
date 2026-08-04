@@ -75,6 +75,8 @@ Return exactly this object:
       "preferences": "",
       "potential_needs": "",
       "facets": [
+        // REQUIRED: exactly 3 facet objects, always. Never omit this array
+        // and never return fewer than 3 facets, even if content is long.
         {
           "name": "",
           "score": "",
@@ -266,6 +268,8 @@ FINAL INSTRUCTIONS
 - Output ONLY the JSON object
 - Third person throughout ALL fields — no "you" or "your" anywhere
 - All five domains and all fifteen facets must be present
+- Every domain object MUST include its "facets" array with exactly 3 facet objects. Do not omit
+  the facets array for any domain, even if that domain's other fields are long.
 - Manager Action Guide must have all four sections fully populated
 - role_cluster_proximity must be fully populated (business_interpretation + strengths + development_areas)
 - Do not mention scores, norms, or psychometric terms in the Manager Action Guide or in role_cluster_proximity

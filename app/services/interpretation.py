@@ -140,8 +140,25 @@ def parse_model_json(raw_text: str) -> dict:
         text = text.strip()
     try:
         return json.loads(text)
-    except json.JSONDecodeError as e:
-        raise InterpretationError(f"Model did not return valid JSON: {e}")
+    except json.JSONDecodeError:
+        pass
+
+    # Fallback: the model may have added stray text before/after the JSON
+    # object despite instructions not to. Extract between the first '{' and
+    # the last '}' and try again before giving up - this is a real,
+    # non-hypothetical failure mode worth guarding against, since each
+    # failed attempt costs a paid API call.
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        candidate = text[start:end + 1]
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError as e:
+            raise InterpretationError(
+                f"Model did not return valid JSON even after stripping stray text: {e}"
+            )
+    raise InterpretationError("Model did not return valid JSON: no '{' / '}' found in response")
 
 
 def validate_report(report: dict) -> None:
@@ -171,7 +188,8 @@ def validate_report(report: dict) -> None:
         if dom.get("name") != expected:
             raise InterpretationError(f"Domain {i} should be '{expected}', got '{dom.get('name')}'")
         if not DOMAIN_REQUIRED.issubset(dom.keys()):
-            raise InterpretationError(f"Domain '{expected}' missing fields")
+            missing = DOMAIN_REQUIRED - dom.keys()
+            raise InterpretationError(f"Domain '{expected}' missing fields: {missing}")
         facets = dom["facets"]
         exp_facets = DOMAIN_FACETS_DISPLAY[expected]
         if len(facets) != 3:
@@ -180,7 +198,8 @@ def validate_report(report: dict) -> None:
             if fac.get("name") != exp_facets[j]:
                 raise InterpretationError(f"{expected} facet {j} should be '{exp_facets[j]}'")
             if not FACET_REQUIRED.issubset(fac.keys()):
-                raise InterpretationError(f"Facet '{exp_facets[j]}' missing fields")
+                missing = FACET_REQUIRED - fac.keys()
+                raise InterpretationError(f"Facet '{exp_facets[j]}' missing fields: {missing}")
 
     # Manager Action Guide
     mag = report["manager_action_guide"]
@@ -210,12 +229,20 @@ def validate_report(report: dict) -> None:
     if not (4 <= len(strengths) <= 6):
         raise InterpretationError(f"role_cluster_proximity.strengths should have 4-6 items, got {len(strengths)}")
     for s in strengths:
+        if not isinstance(s, dict):
+            raise InterpretationError(
+                f"role_cluster_proximity.strengths item must be a {{title, explanation}} object, got {type(s).__name__}: {s!r}"
+            )
         if not s.get("title","").strip() or not s.get("explanation","").strip():
             raise InterpretationError("role_cluster_proximity.strengths item missing title/explanation")
     dev_areas = rcp.get("development_areas", [])
     if not (3 <= len(dev_areas) <= 5):
         raise InterpretationError(f"role_cluster_proximity.development_areas should have 3-5 items, got {len(dev_areas)}")
     for d in dev_areas:
+        if not isinstance(d, dict):
+            raise InterpretationError(
+                f"role_cluster_proximity.development_areas item must be a {{title, explanation}} object, got {type(d).__name__}: {d!r}"
+            )
         if not d.get("title","").strip() or not d.get("explanation","").strip():
             raise InterpretationError("role_cluster_proximity.development_areas item missing title/explanation")
 
@@ -264,6 +291,19 @@ def interpret(
     user_message = build_user_message(participant, scores)
     raw = model_call(SYSTEM_PROMPT, user_message)
     report = parse_model_json(raw)
-    validate_report(report)
+    try:
+        validate_report(report)
+    except InterpretationError:
+        raise
+    except Exception as e:
+        # Safety net: catches any shape mismatch we didn't specifically
+        # anticipate (e.g. a section coming back as the wrong type) and
+        # turns it into a clean, readable message instead of a raw
+        # traceback. The raw response is already saved by the caller,
+        # so nothing is lost even when this fires.
+        raise InterpretationError(
+            f"Unexpected problem validating the model's response ({type(e).__name__}: {e}). "
+            f"Check the saved raw response to see the actual structure returned."
+        )
     report = inject_verified_numbers(report, scores)
     return report
