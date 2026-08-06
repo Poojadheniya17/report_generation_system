@@ -8,3 +8,4 @@ alembic==1.14.0
 httpx==0.28.1
 anthropic==0.40.0
 weasyprint
+pymupdf

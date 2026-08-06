@@ -21,6 +21,7 @@ Key changes from previous version:
 from __future__ import annotations
 
 import math
+import re
 from datetime import date
 from typing import Any
 
@@ -67,6 +68,61 @@ def _level_cls(level: str) -> str:
 
 def _diff_str(d: float) -> str:
     return f"+{d:.2f}" if d >= 0 else f"{d:.2f}"
+
+# --- TRIAD dominant-dimension helpers -------------------------------------
+# Shared by the "Location on the TRIAD Role Map" paragraph and the TRIAD
+# Employee Snapshot bridge paragraph. Both previously hardcoded sociability
+# as the always-dominant theme; these helpers pick the actually-dominant
+# dimension (largest absolute score) per employee instead.
+
+_TRIAD_DISPLAY_NAME = {"task": "Task orientation", "sociability": "Sociability", "dominance": "Dominance"}
+_TRIAD_CANONICAL_ORDER = ["sociability", "dominance", "task"]
+
+def _triad_dims(t: dict) -> dict:
+    return {"task": t["task"], "sociability": t["sociability"], "dominance": t["dominance"]}
+
+def _triad_dominant_key(t: dict) -> str:
+    dims = _triad_dims(t)
+    return max(dims, key=lambda k: abs(dims[k]["score"]))
+
+def _triad_magnitude_phrase(key: str, dim: dict) -> str:
+    """e.g. 'strong task orientation' or 'a mild pull away from sociability'."""
+    name = _TRIAD_DISPLAY_NAME[key].lower()
+    lbl = dim["direction_label"]
+    if lbl == "Balanced":
+        return f"a balanced {name}"
+    strength, _, direction = lbl.partition(" tendency ")
+    strength = strength.lower()
+    if direction == "toward":
+        return f"{strength} {name}"
+    return f"a {strength} pull away from {name}"
+
+def _domains_at_level(report: dict, names: list[str], level: str = "high") -> list[str]:
+    """Which of `names` (personality domains) actually scored at `level` for
+    this employee — used so we only claim a TRIAD theme is 'reinforced by'
+    a personality domain when that domain's own score actually supports it."""
+    hits = []
+    for name in names:
+        for d in report.get("domains", []):
+            if d.get("name","").lower() == name.lower() and (d.get("level") or "").lower() == level:
+                hits.append(name)
+                break
+    return hits
+
+def _trait_at_level(report: dict, name: str, level: str) -> bool:
+    """Check whether a personality domain OR facet named `name` scored at
+    `level` for this employee. Checking facets (not just domains) matters:
+    TRIAD Dominance correlates most precisely with the Assertiveness facet,
+    not the parent Extraversion domain, and an employee can have Low
+    Extraversion overall while still having High Assertiveness within it."""
+    lvl = level.lower()
+    for d in report.get("domains", []):
+        if d.get("name","").lower() == name.lower() and (d.get("level") or "").lower() == lvl:
+            return True
+        for f in d.get("facets", []):
+            if f.get("name","").lower() == name.lower() and (f.get("level") or "").lower() == lvl:
+                return True
+    return False
 
 def _fit_label(similarity: float) -> str:
     if similarity >= 0.90: return "Very High"
@@ -621,7 +677,7 @@ p {{ line-height: 1.7; margin-bottom: 10px; font-size: 10.5pt; }}
 .facet {{ margin-bottom: 9px; padding-bottom: 8px; border-bottom: 1px solid {RULE}; }}
 .facet:last-child {{ border-bottom: none; margin-bottom: 0; padding-bottom: 0; }}
 .facet-header {{ display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }}
-.facet-name {{ font-size: 9.5pt; font-weight: 700; color: {BLUE}; flex: 1; }}
+.facet-name {{ font-size: 9.5pt; font-weight: 700; color: {BLUE}; }}
 .facet-bar {{ margin-bottom: 5px; }}
 .facet-body {{ font-size: 9.5pt; line-height: 1.6; margin-bottom: 7px; }}
 .facet-two-col {{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }}
@@ -844,21 +900,69 @@ def _triad_section_intro(p: dict, report: dict, pg: int) -> str:
     employee = p.get("name","the employee")
     t = report["triad"]
 
-    task_lbl = _esc(t["task"]["direction_label"])
-    soc_lbl  = _esc(t["sociability"]["direction_label"])
-    dom_lbl  = _esc(t["dominance"]["direction_label"])
+    # Dynamically identify which TRIAD dimension is actually dominant for this
+    # employee (largest absolute score), rather than always assuming Sociability.
+    # See _triad_dominant_key et al. above — this was previously hardcoded and
+    # only ever verified against Jordan Avery, whose profile happened to have
+    # Sociability as the genuine dominant theme (+2.17, the largest of the three).
+    _dims = _triad_dims(t)
+    _dominant_key = _triad_dominant_key(t)
+    _dominant = _dims[_dominant_key]
 
-    bridge_p1 = (
-        f"Read together, the two frameworks tell a consistent story about {_esc(employee)}. "
-        f"Sociability is the dominant TRIAD theme ({soc_lbl}, {t['sociability']['score']:+.2f}), "
-        f"reinforced by high Agreeableness and Extraversion in the personality results, "
-        f"pointing to someone who naturally builds and holds teams together."
-    )
+    _closing_clause = {
+        "sociability": "naturally builds and holds teams together",
+        "task": "keeps work structured and reliably moving toward completion",
+        "dominance": "leads primarily through direction-setting and assertiveness",
+    }[_dominant_key]
+
+    # Personality correlates per TRIAD dimension, most-precise first. Facets
+    # are checked before parent domains (via _trait_at_level) so e.g. Dominance
+    # ties to the Assertiveness facet specifically, not just Extraversion as a
+    # whole — an employee can have Low Extraversion overall but High
+    # Assertiveness within it, and the facet is the more accurate correlate.
+    _correlates = {
+        "task": ["Conscientiousness"],
+        "sociability": ["Sociability", "Agreeableness", "Extraversion"],
+        "dominance": ["Assertiveness", "Extraversion"],
+    }
+
+    def _tie_in(key: str) -> str:
+        for name in _correlates[key]:
+            if _trait_at_level(report, name, "high"):
+                return f"high {name}"
+        for name in _correlates[key]:
+            if _trait_at_level(report, name, "low"):
+                return f"low {name}"
+        return ""
+
+    _dominant_tie = _tie_in(_dominant_key)
+    if _dominant_tie:
+        bridge_p1 = (
+            f"Read together, the two frameworks tell a consistent story about {_esc(employee)}. "
+            f"{_TRIAD_DISPLAY_NAME[_dominant_key]} is the clearest signal in the TRIAD profile "
+            f"({_esc(_dominant['direction_label'])}, {_dominant['score']:+.2f}), echoed by "
+            f"{_dominant_tie} in the personality results. Together they point to someone who {_closing_clause}."
+        )
+    else:
+        bridge_p1 = (
+            f"Read together, the two frameworks tell a consistent story about {_esc(employee)}. "
+            f"{_TRIAD_DISPLAY_NAME[_dominant_key]} is the clearest signal in the TRIAD profile "
+            f"({_esc(_dominant['direction_label'])}, {_dominant['score']:+.2f}), pointing to someone who {_closing_clause}."
+        )
+
+    _other_keys = [k for k in _TRIAD_CANONICAL_ORDER if k != _dominant_key]
+
+    def _other_piece(key: str) -> str:
+        d = _dims[key]
+        phrase = _triad_magnitude_phrase(key, d)  # e.g. "moderate dominance" / "a mild pull away from sociability"
+        tie = _tie_in(key)
+        piece = f"{phrase} ({d['score']:+.2f})"
+        if tie:
+            piece += f", consistent with {tie} in the personality results"
+        return piece
+
     bridge_p2 = (
-        f"Dominance runs at a {dom_lbl.lower()} level ({t['dominance']['score']:+.2f}), "
-        f"suggesting influence through ideas and collaboration rather than positional authority. "
-        f"Task orientation is {task_lbl.lower()} ({t['task']['score']:+.2f}), "
-        f"describing someone who keeps work moving without generating friction around process."
+        f"The profile also carries {_other_piece(_other_keys[0])}, and {_other_piece(_other_keys[1])}."
     )
 
     return f"""<div class="page content">
@@ -1097,21 +1201,49 @@ def _role_cluster_proximity(p: dict, report: dict, pg: int) -> list[str]:
 
     sig = {name: (tc, sc2, dc) for name, tc, sc2, dc in ROLE_CLUSTERS}
 
-    fit_desc = {
-        "Coordinator": "Primary match. Balances people and process, links subteams and functions, and facilitates communication and coordination.",
-        "Social": "Secondary alignment on sociability. Less task-structured and more relationship-driven, oriented around morale and connection rather than process.",
-        "Problem Solver": "Partial overlap on task drive. More independent and analytical, oriented toward resolving issues directly rather than through group coordination.",
-        "Team Leader": "Overlaps on task orientation and dominance. Directive and outcome-focused, leading more through authority and structure than through relationship-building.",
-        "Task Motivator": "Overlaps on dominance and task focus. Energizes others toward outcomes, pushing pace and progress more than facilitating consensus.",
+    # Fixed "archetype" flavor text per role - this part is legitimately
+    # generic (describing what the role cluster itself means), not a claim
+    # about this specific employee, so it's fine to keep fixed.
+    role_archetype = {
+        "Coordinator": "Balances people and process, links subteams and functions, and facilitates communication and coordination.",
+        "Social": "Less task-structured and more relationship-driven, oriented around morale and connection rather than process.",
+        "Problem Solver": "More independent and analytical, oriented toward resolving issues directly rather than through group coordination.",
+        "Team Leader": "Directive and outcome-focused, leading more through authority and structure than through relationship-building.",
+        "Task Motivator": "Energizes others toward outcomes, pushing pace and progress more than facilitating consensus.",
     }
 
+    def _overlap_clause(cluster_sig: tuple[float, float, float], rank: int) -> str:
+        """Build the 'Overlaps on X' opening clause from this employee's
+        REAL per-dimension distance to this specific cluster, instead of a
+        fixed claim that doesn't adapt per employee (bug: the previous
+        version hardcoded e.g. 'Overlaps on dominance and task focus' for
+        Task Motivator regardless of the employee - accurate for Jordan
+        Avery, whose task score genuinely was close to Task Motivator's, but
+        wrong for Alex Rivera, whose task score is actually the WORST-
+        matching dimension of the three for that same cluster)."""
+        tc, sc2, dc = cluster_sig
+        gaps = sorted([
+            ("task orientation", abs(task - tc)),
+            ("sociability", abs(soc - sc2)),
+            ("dominance", abs(dom - dc)),
+        ], key=lambda g: g[1])
+        closest_name, closest_gap = gaps[0]
+        second_name, second_gap = gaps[1]
+
+        overlap = f"{'Close' if closest_gap <= 0.3 else 'Partial'} overlap on {closest_name}"
+        if second_gap <= 0.6:
+            overlap += f" and {second_name}"
+        overlap += "."
+        return f"Primary match. {overlap}" if rank == 0 else overlap
+
     sig_rows = ""
-    for name, sim, fit in top3:
-        tc, sc2, dc = sig.get(name, (0,0,0))
+    for rank, (name, sim, fit) in enumerate(top3):
+        tc, sc2, dc = sig.get(name, (0, 0, 0))
+        fit_text = f"{_overlap_clause((tc, sc2, dc), rank)} {role_archetype.get(name, '')}".strip()
         sig_rows += f"""<tr>
       <td style="font-weight:700;color:{BLUE}">{_esc(name)}</td>
       <td style="font-size:9pt">Task {tc:+.2f} &middot; Soc {sc2:+.2f} &middot; Dom {dc:+.2f}</td>
-      <td style="font-size:9.5pt">{fit_desc.get(name, "")}</td>
+      <td style="font-size:9.5pt">{_esc(fit_text)}</td>
     </tr>"""
 
     def bar_w(sim): return max(4, int(sim * 80))
@@ -1174,10 +1306,17 @@ def _role_cluster_proximity(p: dict, report: dict, pg: int) -> list[str]:
         for d in rcp["development_areas"]
     )
 
+    _dims = _triad_dims(t)
+    _dominant_key = _triad_dominant_key(t)
+    _region_label = {"sociability": "upper-social", "task": "upper-task", "dominance": "dominance-leaning"}[_dominant_key]
+    _sorted_keys = sorted(_dims, key=lambda k: abs(_dims[k]["score"]), reverse=True)
+    _phrases = [_triad_magnitude_phrase(k, _dims[k]) for k in _sorted_keys]
+    _combo_desc = ", ".join(_phrases[:-1]) + f", and {_phrases[-1]}"
+
     page2 = f"""<div class="page content">
 
   <h3 class="sub-h" style="margin-top:0">Location on the TRIAD Role Map</h3>
-  <p>This coordinate (Task Orientation {task:+.2f}, Sociability {soc:+.2f}, Dominance {dom:+.2f}) plots in the upper-social region of the TRIAD space, reflecting a combination of strong sociability, moderate task focus, and mild dominance. That region aligns most closely with the {_esc(top_role)} cluster, with secondary proximity to the {_esc(top3[1][0])} and {_esc(top3[2][0])} profiles.</p>
+  <p>This coordinate (Task Orientation {task:+.2f}, Sociability {soc:+.2f}, Dominance {dom:+.2f}) plots in the {_region_label} region of the TRIAD space, reflecting a combination of {_combo_desc}. That region aligns most closely with the {_esc(top_role)} cluster, with secondary proximity to the {_esc(top3[1][0])} and {_esc(top3[2][0])} profiles.</p>
 
   <table class="proximity-table" style="margin:14px 0 18px">
     <thead>
@@ -1283,69 +1422,193 @@ def _manager_action_guide(p: dict, report: dict, pg: int) -> list[str]:
     return [page1, page2]
 
 
+def _inject_anchor(page_html: str, anchor_id: str) -> str:
+    """Insert an invisible anchor as the first child inside a page's opening
+    <div>, so we can later ask WeasyPrint's own Document.pages[i].anchors
+    which PHYSICAL page this content actually landed on after real layout.
+    Used only for measuring accurate TOC page numbers (see generate_pdf)."""
+    idx = page_html.find(">")
+    return page_html[:idx + 1] + f'<a id="{anchor_id}"></a>' + page_html[idx + 1:]
+
+
+def _scale_typography(css_text: str, scale: float) -> str:
+    """Scale every font-size (pt) and line-height (unitless) declaration in
+    the CSS by `scale`. Deliberately narrow regexes - only match right after
+    the property name - so this never touches unrelated numbers: page
+    dimensions (mm), colors, border-widths, padding, and positioning are all
+    left exactly as Tripp approved. Only text density changes, and only when
+    content actually needs it (see generate_pdf's retry loop)."""
+    def scale_fontsize(m):
+        return f"font-size: {float(m.group(1)) * scale:.2f}pt"
+
+    def scale_lineheight(m):
+        return f"line-height: {float(m.group(1)) * scale:.3f}"
+
+    css_text = re.sub(r'font-size:\s*(\d+(?:\.\d+)?)pt', scale_fontsize, css_text)
+    css_text = re.sub(r'line-height:\s*(\d+(?:\.\d+)?)(?!\w)', scale_lineheight, css_text)
+    return css_text
+
+
+def _find_overflowing_pages(pdf_bytes: bytes, min_clearance_pt: float = 15.0) -> list[int]:
+    """Render-and-measure check: open the actual rendered PDF and find any
+    page where content runs within `min_clearance_pt` of the footer zone
+    (or overlaps it outright - clearance can go negative). This is the same
+    technique used throughout manual QA of this report (comparing rendered
+    page content bounds against the known footer y-position), now run
+    automatically as part of every generation instead of only being caught
+    by someone reviewing a PDF by hand. Returns 0-indexed page numbers.
+
+    This exists because per-field word caps (interpretation_prompt.py) are
+    a preventive measure, not a guarantee - live model output varies by a
+    few words every run, and no fixed cap can be proven safe for content
+    that hasn't been written yet. This is the actual safety net: it
+    measures the real rendered geometry, so it catches overflow regardless
+    of why it happened."""
+    import fitz  # pymupdf
+    FOOTER_Y = 820.0
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    overflowing = []
+    for i, page in enumerate(doc):
+        blocks = [b for b in page.get_text("blocks") if b[6] == 0]
+        content = [b for b in blocks if b[1] < FOOTER_Y - 5]
+        if not content:
+            continue
+        clearance = FOOTER_Y - max(b[3] for b in content)
+        if clearance < min_clearance_pt:
+            overflowing.append(i)
+    doc.close()
+    return overflowing
+
+
 # ── entry point ───────────────────────────────────────────────────────────────
 def generate_pdf(participant: dict[str, Any], report: dict[str, Any]) -> bytes:
     """
     participant: {"name": str, "role": str, "manager": str (optional)}
     report:      validated dict from interpretation.interpret()
     Returns PDF as bytes.
+
+    Self-correcting on two axes, because AI-generated content length varies
+    by a few words on every single run and no fixed word budget can be
+    proven safe in advance for content that hasn't been written yet:
+
+    1. TOC page numbers: renders once to measure, via WeasyPrint's own
+       Document.pages[i].anchors, which PHYSICAL page each section actually
+       landed on after real layout - not a hand-calculated formula, which
+       goes stale the moment any page's content differs from what the
+       formula assumed.
+
+    2. Footer overlap: after that same measurement render, checks the
+       ACTUAL rendered PDF geometry (_find_overflowing_pages) for any page
+       running too close to or overlapping the footer. If found, shrinks
+       typography very slightly (_scale_typography - font-size and
+       line-height only, never padding/margins/positions) and re-renders,
+       stepping down until every page clears the footer or a minimum
+       readable scale is reached. A 2-6% type-scale difference is not
+       visually noticeable; overlapping text is.
+
+    Word-count caps in interpretation_prompt.py remain the first line of
+    defense (cheaper - no extra render passes when content already fits),
+    this is what guarantees correctness even when a cap gets missed.
     """
     from weasyprint import HTML, CSS as WpCSS
 
     font_css = _font_css()
-    css      = _css(font_css)
+    base_css = _css(font_css)
+    page_css = WpCSS(string="@page { size: A4; margin: 0; }")
 
-    n_domains = len(report["domains"])
+    def build_pages(toc_entries: list[tuple[str, int, str]]) -> list[str]:
+        """Build the full ordered page list. toc_entries only affects the
+        TOC page's own printed text — every other page's position in the
+        sequence is identical regardless of what toc_entries contains, so
+        this is safe to call once with placeholder data (Pass 1) and again
+        with the real, measured data (Pass 2)."""
+        pg = 1
+        pages: list[str] = []
+        pages.append(_cover(participant, pg));                          pg += 1
+        pages.append(_toc(participant, pg, toc_entries));                pg += 1
 
-    # First pass: compute page numbers for the table of contents.
-    # Page sequence: cover(1), toc(2), introduction x2 (3-4),
-    # personality section intro+snapshot (merged), glance x2, N domains,
-    # triad section intro+snapshot (merged), triad glance x2,
-    # triad interpretation, role proximity, N mag pages.
-    pg = 3
-    toc_entries: list[tuple[str, int, str]] = []
-    toc_entries.append(("Introduction to the Work Style Report", pg,
-        "An overview of the Personality and TRIAD frameworks and how this report should be used."))
-    pg += 2  # two introduction pages
-    toc_entries.append(("Personality Assessment", pg,
-        "The employee's results across the five major personality domains and their underlying facets."))
-    pg += 2  # section intro+snapshot (merged) + 1 glance page (charts+text merged)
-    pg += n_domains
-    toc_entries.append(("TRIAD Assessment", pg,
-        "The employee's Task Orientation, Sociability, and Dominance, plus closest role cluster matches."))
-    pg += 6  # section intro+snapshot (merged) + 1 glance page (charts+text merged) + interpretation + 3 role cluster proximity pages
-    toc_entries.append(("Manager Action Guide", pg,
-        "Practical strategies for communication, motivation, delegation, and leadership."))
-    pg += 2  # two manager action guide pages
+        intro1 = _inject_anchor(_introduction_1(participant, pg), "section-intro")
+        pages.append(intro1);                                            pg += 1
+        pages.append(_introduction_2(participant, pg));                  pg += 1
 
-    pg = 1
-    pages = []
-    pages.append(_cover(participant, pg));                        pg += 1
-    pages.append(_toc(participant, pg, toc_entries));              pg += 1
-    pages.append(_introduction_1(participant, pg));                pg += 1
-    pages.append(_introduction_2(participant, pg));                pg += 1
-    pages.append(_personality_section_intro(participant, report, pg)); pg += 1
-    glance_pages = _glance(participant, report, pg)
-    for gp in glance_pages:
-        pages.append(gp); pg += 1
-    for i, domain in enumerate(report["domains"]):
-        pages.append(_domain(participant, domain, pg, first=(i==0))); pg += 1
-    pages.append(_triad_section_intro(participant, report, pg));   pg += 1
-    triad_profile_pages = _triad_profile(participant, report, pg)
-    for tp in triad_profile_pages:
-        pages.append(tp); pg += 1
-    pages.append(_triad_interpretation(participant, report, pg));  pg += 1
-    rcp_pages = _role_cluster_proximity(participant, report, pg)
-    for rp in rcp_pages:
-        pages.append(rp); pg += 1
-    mag_pages = _manager_action_guide(participant, report, pg)
-    for mp in mag_pages:
-        pages.append(mp); pg += 1
+        personality = _inject_anchor(
+            _personality_section_intro(participant, report, pg), "section-personality")
+        pages.append(personality);                                       pg += 1
+        for gp in _glance(participant, report, pg):
+            pages.append(gp); pg += 1
+        for i, domain in enumerate(report["domains"]):
+            pages.append(_domain(participant, domain, pg, first=(i == 0))); pg += 1
 
-    html = f"""<!DOCTYPE html>
+        triad_intro = _inject_anchor(
+            _triad_section_intro(participant, report, pg), "section-triad")
+        pages.append(triad_intro);                                       pg += 1
+        for tp in _triad_profile(participant, report, pg):
+            pages.append(tp); pg += 1
+        pages.append(_triad_interpretation(participant, report, pg));    pg += 1
+        for rp in _role_cluster_proximity(participant, report, pg):
+            pages.append(rp); pg += 1
+
+        mag_pages = _manager_action_guide(participant, report, pg)
+        if mag_pages:
+            mag_pages[0] = _inject_anchor(mag_pages[0], "section-mag")
+        for mp in mag_pages:
+            pages.append(mp); pg += 1
+
+        return pages
+
+    def render(pages: list[str], css: str):
+        html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>{css}</style></head>
 <body>{"".join(pages)}</body></html>"""
+        return HTML(string=html).render(stylesheets=[page_css])
 
-    return HTML(string=html).write_pdf(
-        stylesheets=[WpCSS(string="@page { size: A4; margin: 0; }")]
-    )
+    # --- Find a type scale where nothing overlaps the footer. Starts at
+    # 100% (the common case - no adjustment needed) and steps down only if
+    # the measurement render actually shows overflow, stopping at a floor
+    # where any further shrinkage would hurt readability more than it helps.
+    placeholder_toc = [("", 0, "")] * 4
+    scale = 1.0
+    scale_floor = 0.90
+    scale_step = 0.02
+    measure_doc = None
+
+    while True:
+        css = _scale_typography(base_css, scale) if scale != 1.0 else base_css
+        measure_pages = build_pages(placeholder_toc)
+        measure_doc = render(measure_pages, css)
+        overflowing = _find_overflowing_pages(measure_doc.write_pdf())
+        if not overflowing:
+            break
+        if scale <= scale_floor + 1e-9:
+            print(f"[pdf_generator] WARNING: {len(overflowing)} page(s) still running tight on the "
+                  f"footer at the minimum type scale ({scale:.0%}): pages {[p+1 for p in overflowing]}. "
+                  f"Shipping the best-effort render rather than blocking - worth checking "
+                  f"check_length_budget() output from interpretation.py for this report.")
+            break
+        scale = round(scale - scale_step, 2)
+        print(f"[pdf_generator] {len(overflowing)} page(s) running tight on the footer "
+              f"(pages {[p+1 for p in overflowing]}) - retrying at {scale:.0%} type scale.")
+
+    css = _scale_typography(base_css, scale) if scale != 1.0 else base_css
+
+    def find_anchor_page(anchor_id: str) -> int:
+        for i, page in enumerate(measure_doc.pages):
+            if anchor_id in page.anchors:
+                return i + 1  # convert 0-indexed to the printed page number
+        return 0  # shouldn't happen; 0 makes a missing anchor obvious in the TOC rather than silently wrong
+
+    toc_entries = [
+        ("Introduction to the Work Style Report", find_anchor_page("section-intro"),
+         "An overview of the Personality and TRIAD frameworks and how this report should be used."),
+        ("Personality Assessment", find_anchor_page("section-personality"),
+         "The employee's results across the five major personality domains and their underlying facets."),
+        ("TRIAD Assessment", find_anchor_page("section-triad"),
+         "The employee's Task Orientation, Sociability, and Dominance, plus closest role cluster matches."),
+        ("Manager Action Guide", find_anchor_page("section-mag"),
+         "Practical strategies for communication, motivation, delegation, and leadership."),
+    ]
+
+    # --- Final render with the real, measured TOC page numbers, at whatever
+    # type scale it took to clear every page's footer.
+    final_doc = render(build_pages(toc_entries), css)
+    return final_doc.write_pdf()

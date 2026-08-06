@@ -154,11 +154,12 @@ TRIAD SECTION — DIRECTIONAL FRAMEWORK
 TRIAD scores range from -3.00 to +3.00.
 direction_label is pre-computed — use it VERBATIM. Do not override.
 
-For each TRIAD dimension write:
-- interpretation: 2-3 sentences. What does this score mean behaviorally? Third person.
-- likely_contribution: 2-3 sentences. How is this tendency likely to be expressed at work?
+For each TRIAD dimension write (word limits are hard caps — the layout is a fixed-height
+page tuned to these lengths, and longer text pushes content onto phantom overflow pages):
+- interpretation: 2-3 sentences, MAX 40 words. What does this score mean behaviorally? Third person.
+- likely_contribution: 2-3 sentences, MAX 45 words. How is this tendency likely to be expressed at work?
   What does the employee naturally contribute in this dimension?
-- manager_considerations: 2-3 sentences. Practical guidance for the manager — how to
+- manager_considerations: 2-3 sentences, MAX 45 words. Practical guidance for the manager — how to
   leverage this tendency and what to watch out for.
 
 FORBIDDEN TRIAD LANGUAGE: high, low, average, percentile, above average, below average,
@@ -174,12 +175,13 @@ DOMAIN + FACET SECTION (BFI-2)
 Five domains in this exact order: Extraversion, Agreeableness, Conscientiousness,
 Negative Emotionality, Open-Mindedness
 
-For each domain:
-- meaning: 3-4 sentence explanation of what this score means in a workplace context.
-  Third person. Focus on how this manifests at work. Reference the facets if relevant.
-- preferences (Natural Work Style): How the employee naturally operates. Third person.
-- potential_needs (Manager Considerations): What management approach, environment, or
-  support structure helps this employee perform at their best. Third person.
+For each domain (word limits are hard caps — each domain plus its 3 facets must fit on
+ONE fixed-height page; longer text pushes content onto phantom overflow pages):
+- meaning: 3-4 sentences, MAX 55 words. Explanation of what this score means in a workplace
+  context. Third person. Focus on how this manifests at work. Reference the facets if relevant.
+- preferences (Natural Work Style): MAX 30 words. How the employee naturally operates. Third person.
+- potential_needs (Manager Considerations): MAX 35 words. What management approach, environment,
+  or support structure helps this employee perform at their best. Third person.
 
 Domain facet mapping (3 facets per domain, this order):
 Extraversion → Sociability, Assertiveness, Energy Level
@@ -188,11 +190,11 @@ Conscientiousness → Organization, Productiveness, Responsibility
 Negative Emotionality → Anxiety, Depression, Emotional Volatility
 Open-Mindedness → Intellectual Curiosity, Aesthetic Sensitivity, Creative Imagination
 
-For each facet:
-- meaning: 2-3 sentences. Practical workplace meaning of this facet score. Third person.
-  Depth comparable to the domain narratives — not just one sentence.
-- preferences (Natural Work Style): Natural tendencies. Third person.
-- potential_needs (Manager Considerations): Actionable guidance for the manager. Third person.
+For each facet (word limits are hard caps — see note above on the fixed-height page):
+- meaning: 2-3 sentences, MAX 35 words. Practical workplace meaning of this facet score.
+  Third person. Depth comparable to the domain narratives, but shorter — this is a facet, not a domain.
+- preferences (Natural Work Style): MAX 20 words. Natural tendencies. Third person.
+- potential_needs (Manager Considerations): MAX 22 words. Actionable guidance for the manager. Third person.
 
 BFI-2 uses High/Average/Low — retain these labels.
 ==============================================
@@ -202,31 +204,40 @@ This is the most practical section. Synthesise both assessments into actionable
 management guidance. Do NOT repeat earlier interpretations. Do NOT mention scores or norms.
 Answer: "If I were managing this employee tomorrow, what do I need to know?"
 
-1. COMMUNICATION STYLE
-narrative: 1 paragraph. How the employee naturally communicates. How managers should
-communicate most effectively with them. Integrate Extraversion, Agreeableness,
-TRIAD Sociability, TRIAD Dominance.
-recommendations: 4-6 bullets covering best communication approach, preferred feedback
-style, communication habits to encourage, approaches to avoid.
+Word limits below are hard caps, calibrated against Jordan Avery's approved baseline
+(measured directly from the approved PDF). The SECTION TOTAL limit is the one that
+matters most: narrative + every bullet in that section must add up to no more than the
+stated total, because each section lives in one fixed-height box and a box that runs
+over its total budget pushes onto a phantom overflow page even if every individual
+field was technically under its own cap. Bullets should stay to one line each
+(8-15 words is the baseline range; do not write multi-sentence bullets).
 
-2. MOTIVATORS & STRESSORS
-narrative: 1 paragraph. What drives engagement and what creates friction.
-motivators: 3-5 bullets — work environment, recognition, engagement, preferred work types.
-stressors: 3-5 bullets — performance barriers, frustrations, management behaviors to avoid.
+1. COMMUNICATION STYLE — SECTION TOTAL: MAX 175 words (narrative + all bullets combined)
+narrative: 1 paragraph, MAX 65 words. How the employee naturally communicates. How managers
+should communicate most effectively with them. Integrate Extraversion, Agreeableness,
+TRIAD Sociability, TRIAD Dominance.
+recommendations: 4-5 bullets, MAX 18 words each, covering best communication approach,
+preferred feedback style, communication habits to encourage, approaches to avoid.
+
+2. MOTIVATORS & STRESSORS — SECTION TOTAL: MAX 160 words (narrative + all bullets combined)
+narrative: 1 paragraph, MAX 55 words. What drives engagement and what creates friction.
+motivators: 3-4 bullets, MAX 15 words each — work environment, recognition, engagement, preferred work types.
+stressors: 3-4 bullets, MAX 15 words each — performance barriers, frustrations, management behaviors to avoid.
 Integrate Conscientiousness, Open-Mindedness, Negative Emotionality, TRIAD Task Orientation,
 TRIAD Dominance, Energy Level.
 
-3. DELEGATION GUIDE
-narrative: 1 paragraph. Types of work that align with natural strengths.
-best_suited_for: 3-5 bullets — specific projects, responsibilities, work types.
-recommendations: 3-5 bullets — autonomy level, check-in frequency, structure, support.
+3. DELEGATION GUIDE — SECTION TOTAL: MAX 200 words (narrative + all bullets combined)
+narrative: 1 paragraph, MAX 60 words. Types of work that align with natural strengths.
+best_suited_for: 3-4 bullets, MAX 18 words each — specific projects, responsibilities, work types.
+recommendations: 3-4 bullets, MAX 18 words each — autonomy level, check-in frequency, structure, support.
 Integrate full TRIAD + Conscientiousness, Open-Mindedness, Extraversion, Agreeableness.
 
-4. LEADERSHIP SUMMARY & ACTION PLAN
-narrative: 1 paragraph. Integrate the entire assessment — not a summary of previous sections.
-strengths: 3-5 bullets — strengths to leverage as a manager.
-watch_points: 2-4 bullets — realistic risks or tendencies to monitor.
-actions: 3-5 bullets — concrete management actions, specific and immediately usable.
+4. LEADERSHIP SUMMARY & ACTION PLAN — SECTION TOTAL: MAX 220 words (narrative + all bullets combined)
+narrative: 1 paragraph, MAX 65 words. Integrate the entire assessment — not a summary of
+previous sections.
+strengths: 3-4 bullets, MAX 18 words each — strengths to leverage as a manager.
+watch_points: 2-3 bullets, MAX 18 words each — realistic risks or tendencies to monitor.
+actions: 3-4 bullets, MAX 18 words each — concrete management actions, specific and immediately usable.
 ==============================================
 ROLE CLUSTER PROXIMITY — CRITICAL SECTION
 ==============================================
@@ -249,14 +260,18 @@ business_interpretation:
   this is a descriptive interpretation of the profile, not guidance
 
 strengths:
-- 4-6 items, each with a short "title" (2-5 words) and a brief "explanation" (1-2 sentences)
+- 4-6 items, each with a short "title" (2-5 words) and a brief "explanation"
+  (1-2 sentences, MAX 30 words — this is a hard cap, the box is fixed-height
+  and 5-6 items must all fit on one page without pushing content past the
+  footer)
 - Must be specific to this employee's exact score combination (task/sociability/dominance
   values and which role clusters they're closest to) — not a generic description of the
   nearest role cluster. Two employees who land near the same cluster but with different
   underlying scores must receive meaningfully different strengths, not templated text.
 
 development_areas:
-- 3-5 items, each with a short "title" (2-5 words) and a brief "explanation" (1-2 sentences)
+- 3-5 items, each with a short "title" (2-5 words) and a brief "explanation"
+  (1-2 sentences, MAX 30 words — same hard cap and reasoning as strengths above)
 - Frame every item as a growth opportunity, never as a weakness or deficit
 - Note when/where the tendency is most likely to show up (what situation, what kind of team
   or work, what pressure point) rather than stating it as a fixed trait

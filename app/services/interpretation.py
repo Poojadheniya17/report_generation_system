@@ -247,6 +247,127 @@ def validate_report(report: dict) -> None:
             raise InterpretationError("role_cluster_proximity.development_areas item missing title/explanation")
 
 
+# Per-field word caps, calibrated against Jordan Avery's approved 19-page baseline
+# (see interpretation_prompt.py for the matching prompt instructions). These are the
+# SAME numbers given to the model as hard limits; this is a post-hoc check for when
+# the model doesn't comply, since prompt instructions are not enforced automatically.
+# Kept a little looser than the prompt limits (roughly +25%) so we only flag genuine
+# overflow risk, not every field that ran a few words long.
+_LENGTH_BUDGET = {
+    "domain.meaning": 70,
+    "domain.preferences": 38,
+    "domain.potential_needs": 44,
+    "facet.meaning": 44,
+    "facet.preferences": 25,
+    "facet.potential_needs": 28,
+    "triad.interpretation": 50,
+    "triad.likely_contribution": 56,
+    "triad.manager_considerations": 56,
+    "mag.narrative": 65,
+    "mag.bullet": 18,
+    "rcp.explanation": 38,
+}
+
+# Section-total budgets, measured directly from Jordan Avery's approved
+# baseline PDF (narrative + every bullet in that section, summed). This is
+# the check that actually catches real overflow: a narrative and every
+# bullet can each individually pass _LENGTH_BUDGET above while the combined
+# total for one fixed-height box still runs ~2x over what fits — that's
+# exactly what happened with Leadership Summary (14 bullets vs baseline's
+# 11, each bullet compliant on its own) before this check existed.
+_SECTION_TOTAL_BUDGET = {
+    "communication_style": 175,
+    "motivators_stressors": 160,
+    "delegation_guide": 200,
+    "leadership_summary": 220,
+}
+
+
+def _wc(text: str) -> int:
+    return len((text or "").split())
+
+
+def check_length_budget(report: dict) -> list[str]:
+    """Non-fatal check: returns a list of human-readable warnings for any field
+    that overshot its word budget enough to risk pushing content onto a phantom
+    overflow page. Does not raise — callers should log/print these, not fail on
+    them, since a single long field is a quality issue, not a broken response."""
+    warnings: list[str] = []
+
+    for dim in ("task", "sociability", "dominance"):
+        t = report.get("triad", {}).get(dim, {})
+        for field, key in (
+            ("interpretation", "triad.interpretation"),
+            ("likely_contribution", "triad.likely_contribution"),
+            ("manager_considerations", "triad.manager_considerations"),
+        ):
+            n = _wc(t.get(field, ""))
+            if n > _LENGTH_BUDGET[key]:
+                warnings.append(f"triad.{dim}.{field}: {n} words (budget {_LENGTH_BUDGET[key]})")
+
+    for dom in report.get("domains", []):
+        name = dom.get("name", "?")
+        for field, key in (
+            ("meaning", "domain.meaning"),
+            ("preferences", "domain.preferences"),
+            ("potential_needs", "domain.potential_needs"),
+        ):
+            n = _wc(dom.get(field, ""))
+            if n > _LENGTH_BUDGET[key]:
+                warnings.append(f"domain[{name}].{field}: {n} words (budget {_LENGTH_BUDGET[key]})")
+        for fac in dom.get("facets", []):
+            fname = fac.get("name", "?")
+            for field, key in (
+                ("meaning", "facet.meaning"),
+                ("preferences", "facet.preferences"),
+                ("potential_needs", "facet.potential_needs"),
+            ):
+                n = _wc(fac.get(field, ""))
+                if n > _LENGTH_BUDGET[key]:
+                    warnings.append(f"domain[{name}].facet[{fname}].{field}: {n} words (budget {_LENGTH_BUDGET[key]})")
+
+    mag = report.get("manager_action_guide", {})
+    _mag_bullet_fields = {
+        "communication_style": ["recommendations"],
+        "motivators_stressors": ["motivators", "stressors"],
+        "delegation_guide": ["best_suited_for", "recommendations"],
+        "leadership_summary": ["strengths", "watch_points", "actions"],
+    }
+    for section, bullet_fields in _mag_bullet_fields.items():
+        sec = mag.get(section, {})
+        narrative = sec.get("narrative", "")
+        n = _wc(narrative)
+        if n > _LENGTH_BUDGET["mag.narrative"]:
+            warnings.append(f"manager_action_guide.{section}.narrative: {n} words (budget {_LENGTH_BUDGET['mag.narrative']})")
+
+        section_total = n
+        bullet_count = 0
+        for field in bullet_fields:
+            for i, bullet in enumerate(sec.get(field, [])):
+                bn = _wc(bullet)
+                section_total += bn
+                bullet_count += 1
+                if bn > _LENGTH_BUDGET["mag.bullet"]:
+                    warnings.append(f"manager_action_guide.{section}.{field}[{i}]: {bn} words (budget {_LENGTH_BUDGET['mag.bullet']})")
+
+        budget = _SECTION_TOTAL_BUDGET[section]
+        if section_total > budget:
+            warnings.append(
+                f"manager_action_guide.{section}: SECTION TOTAL {section_total} words across "
+                f"narrative + {bullet_count} bullets (budget {budget}) — likely to overflow its box "
+                f"even though individual fields may be within their own limits"
+            )
+
+    rcp = report.get("role_cluster_proximity", {})
+    for field in ("strengths", "development_areas"):
+        for i, item in enumerate(rcp.get(field, [])):
+            n = _wc(item.get("explanation", ""))
+            if n > _LENGTH_BUDGET["rcp.explanation"]:
+                warnings.append(f"role_cluster_proximity.{field}[{i}].explanation: {n} words (budget {_LENGTH_BUDGET['rcp.explanation']})")
+
+    return warnings
+
+
 def inject_verified_numbers(report: dict, scores: dict[str, Any]) -> dict:
     """Overwrite numeric fields with engine values. Prose is left as AI wrote it."""
     triad = scores["triad"]
@@ -306,4 +427,12 @@ def interpret(
             f"Check the saved raw response to see the actual structure returned."
         )
     report = inject_verified_numbers(report, scores)
+
+    length_warnings = check_length_budget(report)
+    if length_warnings:
+        print(f"[interpretation] WARNING: {len(length_warnings)} field(s) over the length budget "
+              f"and at risk of pushing content onto a phantom overflow page:")
+        for w in length_warnings:
+            print(f"  - {w}")
+
     return report
