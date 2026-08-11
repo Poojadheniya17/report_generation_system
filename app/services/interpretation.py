@@ -11,6 +11,7 @@ Changes from participant version:
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from app.services.interpretation_prompt import (
@@ -287,6 +288,50 @@ def _wc(text: str) -> int:
     return len((text or "").split())
 
 
+def _desplit_em_dash(text: str) -> str:
+    """Deterministically remove em dashes from a single string.
+
+    The system prompt already instructs the model never to use em dashes
+    (see interpretation_prompt.py), but that's a soft instruction the model
+    doesn't reliably follow (12 em dashes measured in a live-generated
+    report on 2026-08-06). Word budgets have the self-correcting render
+    pipeline as a hard backstop regardless of model compliance; em dashes
+    had no equivalent, so this closes that gap the same way: guarantee the
+    zero-em-dash rule holds no matter what the model actually writes.
+
+    Rule: split on " — " (or a bare em dash with adjacent whitespace).
+    If the text immediately following starts with an uppercase letter,
+    treat it as an independent clause and join with ". " (period). Uppercase
+    here reliably means a proper noun or a clause that reads as a complete
+    sentence on its own (confirmed against all 12 real occurrences found).
+    Otherwise it's a parenthetical/appositive fragment, so join with ", ".
+    """
+    if not text or "\u2014" not in text:
+        return text
+    parts = re.split(r"\s*\u2014\s*", text)
+    out = parts[0]
+    for part in parts[1:]:
+        if part and part[0].isupper():
+            out = out.rstrip(" ,") 
+            if not out.endswith((".", "!", "?")):
+                out += "."
+            out += " " + part
+        else:
+            out = out.rstrip(" .") + ", " + part
+    return out
+
+
+def strip_em_dashes(value):
+    """Recursively apply _desplit_em_dash to every string in a report dict/list."""
+    if isinstance(value, str):
+        return _desplit_em_dash(value)
+    if isinstance(value, dict):
+        return {k: strip_em_dashes(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [strip_em_dashes(v) for v in value]
+    return value
+
+
 def check_length_budget(report: dict) -> list[str]:
     """Non-fatal check: returns a list of human-readable warnings for any field
     that overshot its word budget enough to risk pushing content onto a phantom
@@ -426,6 +471,7 @@ def interpret(
             f"Unexpected problem validating the model's response ({type(e).__name__}: {e}). "
             f"Check the saved raw response to see the actual structure returned."
         )
+    report = strip_em_dashes(report)
     report = inject_verified_numbers(report, scores)
 
     length_warnings = check_length_budget(report)

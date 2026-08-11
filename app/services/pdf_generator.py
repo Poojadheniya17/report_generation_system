@@ -1020,7 +1020,7 @@ def _glance(p: dict, report: dict, pg: int) -> list[str]:
 
   <div class="glance-card" style="padding:12px 20px">
     <div class="glance-card-title">Profile Shape</div>
-    <p class="fig-caption">Highlights the relative pattern across the five personality domains, making it easier to identify the employee's strongest and weakest behavioral tendencies at a glance.</p>
+    <p class="fig-caption">Highlights the relative pattern across the five personality domains, making it easy to identify the employee's strongest and least prominent behavioral tendencies at a glance.</p>
     <div class="radar-center">{_radar_svg(domains, size=220)}</div>
   </div>
   {_footer(employee, pg)}
