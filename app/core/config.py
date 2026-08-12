@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     # Claude (Week 2 — interpretations). Stubbed for now.
     anthropic_api_key: str = Field(default="")
 
+    # Portal — single shared password (Tripp is the only user, so no user
+    # table/registration flow needed). Session cookies are signed with
+    # secret_key; set both in .env before deploying anywhere real.
+    portal_password: str = Field(default="changeme")
+    secret_key: str = Field(default="dev-only-insecure-secret-change-in-env")
+
     @property
     def is_production(self) -> bool:
         return self.environment.lower() == "production"

@@ -14,18 +14,25 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    JSON,
     DateTime,
     Enum,
     ForeignKey,
     Index,
     String,
     Text,
+    Uuid,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
+
+# Cross-dialect JSON column: real JSONB (with indexing/operators) on Postgres
+# in production, plain JSON on SQLite for local dev — same models.py works
+# against both without a separate test-only monkeypatch.
+_JSON = JSON().with_variant(JSONB, "postgresql")
 
 
 def _uuid() -> uuid.UUID:
@@ -46,7 +53,7 @@ class Respondent(Base):
     """A person who completed the assessment (a portal user in Week 4)."""
     __tablename__ = "respondents"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=_uuid)
     email: Mapped[str | None] = mapped_column(String(320), index=True, nullable=True)
     full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -63,7 +70,7 @@ class SurveyResponse(Base):
     """
     __tablename__ = "survey_responses"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=_uuid)
     respondent_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("respondents.id"), nullable=True, index=True
     )
@@ -74,8 +81,8 @@ class SurveyResponse(Base):
     typeform_token: Mapped[str | None] = mapped_column(String(128), nullable=True)
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    raw_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    answers: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    raw_payload: Mapped[dict] = mapped_column(_JSON, nullable=False)
+    answers: Mapped[dict] = mapped_column(_JSON, nullable=False, default=dict)
 
     status: Mapped[ProcessingStatus] = mapped_column(
         Enum(ProcessingStatus, name="processing_status"),
@@ -105,13 +112,13 @@ class ScoringResult(Base):
     """
     __tablename__ = "scoring_results"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=_uuid)
     response_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("survey_responses.id"), unique=True, nullable=False, index=True
     )
 
-    triad: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    big_five: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    triad: Mapped[dict] = mapped_column(_JSON, nullable=False, default=dict)
+    big_five: Mapped[dict] = mapped_column(_JSON, nullable=False, default=dict)
 
     # Version of the scoring logic used — lets us re-score and compare safely.
     scoring_version: Mapped[str] = mapped_column(String(32), default="0.1.0")
@@ -124,7 +131,7 @@ class Report(Base):
     """Generated PDF metadata (Week 2 fills storage_url)."""
     __tablename__ = "reports"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=_uuid)
     response_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("survey_responses.id"), unique=True, nullable=False, index=True
     )
@@ -139,7 +146,7 @@ class AuditLog(Base):
     """Append-only record of every pipeline action — required for the audit trail."""
     __tablename__ = "audit_logs"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=_uuid)
     response_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("survey_responses.id"), nullable=True, index=True
     )

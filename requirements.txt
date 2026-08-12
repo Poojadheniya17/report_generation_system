@@ -9,3 +9,6 @@ httpx==0.28.1
 anthropic==0.40.0
 weasyprint
 pymupdf
+jinja2==3.1.4
+itsdangerous==2.2.0
+python-multipart==0.0.20

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Reports — Report Portal{% endblock %}
+{% block content %}
+  <div class="topbar">
+    <h1 style="margin:0;">Reports</h1>
+    <a href="/logout">Log out</a>
+  </div>
+  <div class="card">
+    {% if rows %}
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Role</th>
+          <th>Submitted</th>
+          <th>Status</th>
+          <th>Report</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.name or "—" }}</td>
+          <td>{{ row.role or "—" }}</td>
+          <td>{{ row.submitted_at.strftime("%b %d, %Y %H:%M") if row.submitted_at else "—" }}</td>
+          <td><span class="status status-{{ row.status.value }}">{{ row.status.value.replace("_", " ") }}</span></td>
+          <td>
+            {% if row.has_pdf %}
+              <a class="download" href="/reports/{{ row.report_id }}/download">Download</a>
+            {% else %}
+              <span class="muted">Not ready</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <p class="muted">No submissions yet.</p>
+    {% endif %}
+  </div>
+{% endblock %}
