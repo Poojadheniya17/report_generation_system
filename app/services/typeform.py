@@ -64,13 +64,15 @@ def parse_typeform_payload(payload: dict[str, Any]) -> dict[str, Any]:
         if answer.get("type") == "email" and email is None:
             email = value
 
-    # "Role" is an actual answered question on the form (ref="Role",
-    # short_text) — not a hidden field. There's no "Name" question on the
-    # form at all, so name has to come through as a hidden field (Tripp's
-    # planned personalized-link workflow would pass it as a URL param).
+    # "Role" and "Name" are both answered questions on the live form
+    # (confirmed from a real submission on 2026-08-12) — not hidden fields.
+    # The form was edited after we last pulled its field list, which
+    # originally had no "Name" question at all; a hidden-field fallback is
+    # kept here in case Tripp's planned personalized-link workflow starts
+    # passing name as a URL param instead/in addition.
     hidden = form_response.get("hidden", {}) or {}
     email = email or hidden.get("email")
-    name = hidden.get("name") or hidden.get("full_name")
+    name = answers_map.get("Name") or hidden.get("name") or hidden.get("full_name")
     role = answers_map.get("Role") or hidden.get("role")
 
     submitted_raw = form_response.get("submitted_at")

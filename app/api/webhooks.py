@@ -85,7 +85,7 @@ def process_submission(response_id) -> None:
                     bfi_answers[int(k.split("_", 1)[1])] = float(v)
                 except (ValueError, IndexError):
                     pass
-        scores = score_all(triad_answers, bfi_answers)
+        scores = score_all(triad_answers, bfi_answers, triad_already_centered=False)
 
         response.status = ProcessingStatus.scored
         db.add(AuditLog(response_id=response_id, action="score", status="ok"))
@@ -93,9 +93,18 @@ def process_submission(response_id) -> None:
 
         # 3. Interpret
         from app.services.interpretation import interpret
-        respondent_name = response.respondent.full_name if response.respondent else ""
+        # "Name" is an answered question on the live form (confirmed from a
+        # real submission) — not a hidden field like the original form
+        # layout suggested. Respondent.full_name may still be None if this
+        # response predates this fix or the field gets renamed again, so
+        # fall back to the answered value directly.
+        respondent_name = (
+            (response.respondent.full_name if response.respondent else None)
+            or parsed_answers.get("Name")
+            or ""
+        )
         participant = {
-            "name": respondent_name or "",
+            "name": respondent_name,
             "role": parsed_answers.get("Role") or "",
         }
         report = interpret(participant, scores, _model_call)
