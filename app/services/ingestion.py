@@ -43,15 +43,23 @@ def ingest_response(
         db.commit()
         return existing, False
 
-    # Attach/create respondent if we have an email.
+    # Attach/create respondent if we have an email. If the respondent
+    # already exists but is missing a name (e.g. an earlier submission came
+    # in before a name field existed, or before this parsing was fixed),
+    # backfill it now rather than leaving it stale — the dashboard reads
+    # Respondent.full_name directly, so a blank here stays blank forever
+    # otherwise, even once new submissions correctly resolve the name.
     respondent: Respondent | None = None
     email = parsed.get("respondent_email")
+    resolved_name = parsed.get("respondent_name")
     if email:
         respondent = db.scalar(select(Respondent).where(Respondent.email == email))
         if respondent is None:
-            respondent = Respondent(email=email, full_name=parsed.get("respondent_name"))
+            respondent = Respondent(email=email, full_name=resolved_name)
             db.add(respondent)
             db.flush()  # get respondent.id without committing yet
+        elif not respondent.full_name and resolved_name:
+            respondent.full_name = resolved_name
 
     response = SurveyResponse(
         respondent_id=respondent.id if respondent else None,
