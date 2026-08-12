@@ -44,7 +44,8 @@ def parse_typeform_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """
     Returns a dict with:
       form_id, response_id, token, submitted_at (datetime|None),
-      hidden (dict), answers ({field_ref: value}), respondent_email, respondent_name
+      hidden (dict), answers ({field_ref: value}), respondent_email,
+      respondent_name, respondent_role
     """
     form_response = payload.get("form_response", {})
 
@@ -63,10 +64,14 @@ def parse_typeform_payload(payload: dict[str, Any]) -> dict[str, Any]:
         if answer.get("type") == "email" and email is None:
             email = value
 
-    # Typeform "hidden fields" often carry email/name passed via the survey link.
+    # "Role" is an actual answered question on the form (ref="Role",
+    # short_text) — not a hidden field. There's no "Name" question on the
+    # form at all, so name has to come through as a hidden field (Tripp's
+    # planned personalized-link workflow would pass it as a URL param).
     hidden = form_response.get("hidden", {}) or {}
     email = email or hidden.get("email")
     name = hidden.get("name") or hidden.get("full_name")
+    role = answers_map.get("Role") or hidden.get("role")
 
     submitted_raw = form_response.get("submitted_at")
     submitted_at: datetime | None = None
@@ -85,4 +90,5 @@ def parse_typeform_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "answers": answers_map,
         "respondent_email": email,
         "respondent_name": name,
+        "respondent_role": role,
     }
