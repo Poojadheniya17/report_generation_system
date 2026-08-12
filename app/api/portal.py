@@ -9,6 +9,7 @@ SessionMiddleware (added in main.py) — no separate session table needed.
 """
 from __future__ import annotations
 
+import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -92,7 +93,17 @@ def download_report(report_id: str, request: Request, db: Session = Depends(get_
     if not require_login(request):
         return RedirectResponse("/login", status_code=302)
 
-    report = db.get(Report, report_id)
+    # report_id arrives as a raw string from the URL path. SQLAlchemy's
+    # Uuid column type expects an actual uuid.UUID instance for db.get() —
+    # passing the string straight through raises a confusing AttributeError
+    # deep in the SQL layer instead of a clean 404. Convert explicitly, and
+    # treat a malformed/tampered URL as "not found" rather than a 500.
+    try:
+        report_uuid = uuid.UUID(report_id)
+    except ValueError:
+        return HTMLResponse("Report not found.", status_code=404)
+
+    report = db.get(Report, report_uuid)
     if not report or not report.storage_url:
         return HTMLResponse("Report not found.", status_code=404)
 
