@@ -26,6 +26,8 @@ class Settings(BaseSettings):
 
     # Claude (Week 2 — interpretations). Stubbed for now.
     anthropic_api_key: str = Field(default="")
+    interpretation_model: str = Field(default="claude-sonnet-4-6")
+    interpretation_max_tokens: int = Field(default=8000)
 
     # Portal — single shared password (Tripp is the only user, so no user
     # table/registration flow needed). Session cookies are signed with

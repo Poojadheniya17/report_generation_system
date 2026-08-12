@@ -38,17 +38,22 @@ PDF_OUTPUT_DIR = Path(os.getenv("PDF_OUTPUT_DIR", "/tmp/reports"))
 PDF_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def _model_call(system_prompt: str, user_message: str) -> str:
-    """Call Anthropic claude-sonnet to generate interpretation JSON."""
-    import anthropic
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=8192,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_message}],
+def _get_model_call():
+    """
+    Build the real model call lazily (not at import time) so this module can
+    still be imported without ANTHROPIC_API_KEY set (tests, tooling). Uses
+    model_client.make_anthropic_model_call() rather than hand-rolling the
+    Anthropic call here — that's the one place INTERPRETATION_MODEL and
+    INTERPRETATION_MAX_TOKENS actually get read from the environment, and it
+    correctly concatenates every text block in the response instead of only
+    reading the first one.
+    """
+    from app.services.model_client import make_anthropic_model_call
+    return make_anthropic_model_call(
+        api_key=settings.anthropic_api_key,
+        model=settings.interpretation_model,
+        max_tokens=settings.interpretation_max_tokens,
     )
-    return message.content[0].text
 
 
 def process_submission(response_id) -> None:
@@ -107,7 +112,7 @@ def process_submission(response_id) -> None:
             "name": respondent_name,
             "role": parsed_answers.get("Role") or "",
         }
-        report = interpret(participant, scores, _model_call)
+        report = interpret(participant, scores, _get_model_call())
 
         response.status = ProcessingStatus.interpreted
         rpt.interpretation = json.dumps(report)
