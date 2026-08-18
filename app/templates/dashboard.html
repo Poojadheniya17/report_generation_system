@@ -12,6 +12,7 @@
         <tr>
           <th>Name</th>
           <th>Role</th>
+          <th>Reference</th>
           <th>Submitted</th>
           <th>Status</th>
           <th>Report</th>
@@ -22,6 +23,7 @@
         <tr>
           <td>{{ row.name or "—" }}</td>
           <td>{{ row.role or "—" }}</td>
+          <td class="muted">{{ row.reference or "—" }}</td>
           <td>{{ row.submitted_at.strftime("%b %d, %Y %H:%M") if row.submitted_at else "—" }}</td>
           <td><span class="status status-{{ row.status.value }}">{{ row.status.value.replace("_", " ") }}</span></td>
           <td>

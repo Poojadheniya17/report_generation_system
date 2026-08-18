@@ -69,6 +69,7 @@ def ingest_response(
         submitted_at=parsed.get("submitted_at"),
         raw_payload=raw_payload,
         answers=parsed.get("answers", {}),
+        hidden_fields=parsed.get("hidden", {}),
         status=ProcessingStatus.received,
     )
     db.add(response)

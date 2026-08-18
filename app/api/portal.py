@@ -71,6 +71,13 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     )
     rows = []
     for response, report in db.execute(stmt).all():
+        # Show hidden fields as "key: value" pairs, whatever they're
+        # actually called. Generic on purpose — if Tripp adds a hidden
+        # field like assessment_id later, it shows up automatically here,
+        # no code change needed to know its name ahead of time.
+        hidden = response.hidden_fields or {}
+        reference = ", ".join(f"{k}: {v}" for k, v in hidden.items() if v) or None
+
         rows.append({
             # "respondent_name" comes from a hidden field, not an answered
             # question — it's captured on the Respondent row at ingest time
@@ -83,6 +90,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "status": response.status,
             "report_id": report.id if report else None,
             "has_pdf": bool(report and report.storage_url),
+            "reference": reference,
         })
 
     return templates.TemplateResponse(request, "dashboard.html", {"rows": rows})

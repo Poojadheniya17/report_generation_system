@@ -83,6 +83,11 @@ class SurveyResponse(Base):
 
     raw_payload: Mapped[dict] = mapped_column(_JSON, nullable=False)
     answers: Mapped[dict] = mapped_column(_JSON, nullable=False, default=dict)
+    # Whatever Typeform hidden fields came through, whatever they're named.
+    # Generic by design so nothing needs to know a specific field name
+    # (e.g. assessment_id) ahead of time — if Tripp adds one, it just shows
+    # up here automatically, no code change or coordination needed.
+    hidden_fields: Mapped[dict] = mapped_column(_JSON, nullable=False, default=dict)
 
     status: Mapped[ProcessingStatus] = mapped_column(
         Enum(ProcessingStatus, name="processing_status"),
