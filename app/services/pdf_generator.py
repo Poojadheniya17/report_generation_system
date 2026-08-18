@@ -898,72 +898,16 @@ def _triad_section_intro(p: dict, report: dict, pg: int) -> str:
     per the revised layout doc. Combined onto one page for the same
     reason as the Personality section - each was too light on its own."""
     employee = p.get("name","the employee")
-    t = report["triad"]
 
-    # Dynamically identify which TRIAD dimension is actually dominant for this
-    # employee (largest absolute score), rather than always assuming Sociability.
-    # See _triad_dominant_key et al. above — this was previously hardcoded and
-    # only ever verified against Jordan Avery, whose profile happened to have
-    # Sociability as the genuine dominant theme (+2.17, the largest of the three).
-    _dims = _triad_dims(t)
-    _dominant_key = _triad_dominant_key(t)
-    _dominant = _dims[_dominant_key]
-
-    _closing_clause = {
-        "sociability": "naturally builds and holds teams together",
-        "task": "keeps work structured and reliably moving toward completion",
-        "dominance": "leads primarily through direction-setting and assertiveness",
-    }[_dominant_key]
-
-    # Personality correlates per TRIAD dimension, most-precise first. Facets
-    # are checked before parent domains (via _trait_at_level) so e.g. Dominance
-    # ties to the Assertiveness facet specifically, not just Extraversion as a
-    # whole — an employee can have Low Extraversion overall but High
-    # Assertiveness within it, and the facet is the more accurate correlate.
-    _correlates = {
-        "task": ["Conscientiousness"],
-        "sociability": ["Sociability", "Agreeableness", "Extraversion"],
-        "dominance": ["Assertiveness", "Extraversion"],
-    }
-
-    def _tie_in(key: str) -> str:
-        for name in _correlates[key]:
-            if _trait_at_level(report, name, "high"):
-                return f"high {name}"
-        for name in _correlates[key]:
-            if _trait_at_level(report, name, "low"):
-                return f"low {name}"
-        return ""
-
-    _dominant_tie = _tie_in(_dominant_key)
-    if _dominant_tie:
-        bridge_p1 = (
-            f"Read together, the two frameworks tell a consistent story about {_esc(employee)}. "
-            f"{_TRIAD_DISPLAY_NAME[_dominant_key]} is the clearest signal in the TRIAD profile "
-            f"({_esc(_dominant['direction_label'])}, {_dominant['score']:+.2f}), echoed by "
-            f"{_dominant_tie} in the personality results. Together they point to someone who {_closing_clause}."
-        )
-    else:
-        bridge_p1 = (
-            f"Read together, the two frameworks tell a consistent story about {_esc(employee)}. "
-            f"{_TRIAD_DISPLAY_NAME[_dominant_key]} is the clearest signal in the TRIAD profile "
-            f"({_esc(_dominant['direction_label'])}, {_dominant['score']:+.2f}), pointing to someone who {_closing_clause}."
-        )
-
-    _other_keys = [k for k in _TRIAD_CANONICAL_ORDER if k != _dominant_key]
-
-    def _other_piece(key: str) -> str:
-        d = _dims[key]
-        phrase = _triad_magnitude_phrase(key, d)  # e.g. "moderate dominance" / "a mild pull away from sociability"
-        tie = _tie_in(key)
-        piece = f"{phrase} ({d['score']:+.2f})"
-        if tie:
-            piece += f", consistent with {tie} in the personality results"
-        return piece
-
-    bridge_p2 = (
-        f"The profile also carries {_other_piece(_other_keys[0])}, and {_other_piece(_other_keys[1])}."
-    )
+    # employee_snapshot.text is now genuinely AI-generated (see
+    # interpretation_prompt.py "TRIAD SECTION: Employee Snapshot") — it used
+    # to be a hardcoded template stitching together the dominant TRIAD score
+    # and its personality correlate, which only ever stated that the two
+    # frameworks "relate" rather than actually synthesizing what that means
+    # for teamwork. Tripp flagged this directly; this replaces it with real
+    # AI reasoning about team contribution, collaboration, and value, per
+    # his original spec for this section.
+    snapshot_text = _esc(report["triad"].get("employee_snapshot", {}).get("text", ""))
 
     return f"""<div class="page content">
   <div class="eyebrow">TRIAD Assessment</div>
@@ -981,8 +925,7 @@ def _triad_section_intro(p: dict, report: dict, pg: int) -> str:
   <div class="report-transition">
     <h3 class="sub-h">Employee Snapshot</h3>
     <div class="callout"><p>This snapshot provides a high-level overview of the employee's workplace contribution profile by integrating the Personality and TRIAD assessment results. It summarizes how the employee is likely to contribute within a team, collaborate with others, and add value in the workplace before exploring the detailed TRIAD interpretations that follow.</p></div>
-    <p class="lead">{bridge_p1}</p>
-    <p class="lead">{bridge_p2}</p>
+    <p class="lead">{snapshot_text}</p>
   </div>
 
   {_footer(employee, pg)}

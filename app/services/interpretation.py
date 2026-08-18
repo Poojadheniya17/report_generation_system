@@ -171,6 +171,12 @@ def validate_report(report: dict) -> None:
     if not report["executive_summary"].get("text","").strip():
         raise InterpretationError("executive_summary.text is empty")
 
+    # TRIAD employee snapshot — separate synthesis paragraph, checked before
+    # the per-dimension fields below
+    triad_snapshot = report["triad"].get("employee_snapshot", {}).get("text", "").strip()
+    if not triad_snapshot:
+        raise InterpretationError("triad.employee_snapshot.text is empty")
+
     # TRIAD — now has 5 required fields
     for dim in ("task","sociability","dominance"):
         t = report["triad"].get(dim)
@@ -338,6 +344,11 @@ def check_length_budget(report: dict) -> list[str]:
     overflow page. Does not raise — callers should log/print these, not fail on
     them, since a single long field is a quality issue, not a broken response."""
     warnings: list[str] = []
+
+    snapshot_text = report.get("triad", {}).get("employee_snapshot", {}).get("text", "")
+    n = _wc(snapshot_text)
+    if n > 120:
+        warnings.append(f"triad.employee_snapshot.text: {n} words (budget 120)")
 
     for dim in ("task", "sociability", "dominance"):
         t = report.get("triad", {}).get(dim, {})

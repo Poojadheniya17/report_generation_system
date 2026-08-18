@@ -42,6 +42,9 @@ Return exactly this object:
     "text": ""
   },
   "triad": {
+    "employee_snapshot": {
+      "text": ""
+    },
     "task": {
       "score": "",
       "direction_label": "",
@@ -148,6 +151,28 @@ The executive_summary.text field must:
   practical management thread
 - No scores, no norm references, purely behavioral and practical
 - Professional tone, NOT inspirational
+==============================================
+TRIAD SECTION: Employee Snapshot
+==============================================
+This is a genuine synthesis paragraph, not a restatement of scores. It sits at the top of
+the TRIAD Assessment section and must summarize how the employee is likely to contribute
+within a team, collaborate with others, and add value in the workplace, drawing on BOTH
+the TRIAD profile and the personality (Big Five) results together.
+
+The triad.employee_snapshot.text field must:
+- Be 80-120 words, one or two short paragraphs
+- Third person throughout
+- Explicitly name the dominant TRIAD dimension and its clearest personality correlate, but
+  go beyond stating that they relate. Explain what that combination actually predicts about
+  how the employee shows up on a team, not just that the scores echo each other
+- Briefly address the other two TRIAD dimensions, tied to a real behavioral implication for
+  teamwork or collaboration, not just listed
+- No raw scores or norm references in the prose, the numbers are already shown in the chart
+  directly above this text
+- direction_label is pre-computed, use it verbatim if referenced, never override it
+- This is NOT the same field as executive_summary.text (the Personality section's Employee
+  Snapshot). That one opens the whole report. This one is specific to the TRIAD section and
+  should not repeat the same sentences or framing verbatim.
 ==============================================
 TRIAD SECTION: DIRECTIONAL FRAMEWORK
 ==============================================
