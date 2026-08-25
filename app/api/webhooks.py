@@ -16,9 +16,7 @@ SessionLocal() and closes it explicitly when done.
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime, timezone
-from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -32,10 +30,6 @@ from app.services.typeform import parse_typeform_payload
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 settings = get_settings()
-
-# Output directory for generated PDFs (M4 will replace with S3/cloud storage)
-PDF_OUTPUT_DIR = Path(os.getenv("PDF_OUTPUT_DIR", "/tmp/reports"))
-PDF_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _get_model_call():
@@ -123,15 +117,17 @@ def process_submission(response_id) -> None:
         from app.services.pdf_generator import generate_pdf
         pdf_bytes = generate_pdf(participant, report)
 
-        # 5. Save PDF
+        # 5. Save PDF — R2 in production, local disk automatically as a
+        # fallback if R2 isn't configured (see app/services/storage.py)
+        from app.services.storage import save_pdf
         safe_name = "".join(
             c if c.isalnum() or c in "-_" else "_" for c in participant["name"]
         ) or "unnamed"
-        pdf_path = PDF_OUTPUT_DIR / f"{safe_name}_{response_id}.pdf"
-        pdf_path.write_bytes(pdf_bytes)
+        storage_key = f"{safe_name}_{response_id}.pdf"
+        storage_ref = save_pdf(storage_key, pdf_bytes)
 
         # 6. Update the Report row
-        rpt.storage_url = str(pdf_path)
+        rpt.storage_url = storage_ref
         rpt.generated_at = datetime.now(timezone.utc)
         response.status = ProcessingStatus.report_ready
         db.add(AuditLog(response_id=response_id, action="generate_pdf", status="ok",

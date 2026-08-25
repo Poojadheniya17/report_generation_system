@@ -1,0 +1,14 @@
+[phases.setup]
+# WeasyPrint needs these system-level graphics libraries — they're not
+# Python packages, so pip alone can't provide them. Without this, PDF
+# generation fails on Railway even though it works fine on your machine
+# (which likely has them installed some other way, e.g. via Homebrew/apt
+# from an earlier setup step).
+aptPkgs = [
+    "libpango-1.0-0",
+    "libpangocairo-1.0-0",
+    "libgdk-pixbuf2.0-0",
+    "libffi-dev",
+    "shared-mime-info",
+    "fonts-liberation"
+]

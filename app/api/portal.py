@@ -115,8 +115,16 @@ def download_report(report_id: str, request: Request, db: Session = Depends(get_
     if not report or not report.storage_url:
         return HTMLResponse("Report not found.", status_code=404)
 
-    path = Path(report.storage_url)
+    # get_download_target abstracts R2 vs local disk — portal.py doesn't
+    # need to know which one is actually configured.
+    from app.services.storage import get_download_target
+    filename = f"{report_id}.pdf"
+    kind, target = get_download_target(report.storage_url, filename)
+
+    if kind == "redirect":
+        return RedirectResponse(target, status_code=302)
+
+    path = target
     if not path.exists():
         return HTMLResponse("Report file is missing on disk.", status_code=404)
-
     return FileResponse(path, media_type="application/pdf", filename=path.name)

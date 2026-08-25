@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     portal_password: str = Field(default="changeme")
     secret_key: str = Field(default="dev-only-insecure-secret-change-in-env")
 
+    # Cloudflare R2 (PDF storage in production). Leave all blank for local
+    # dev — storage.py automatically falls back to local disk when these
+    # aren't set, so nothing extra is required to keep testing locally.
+    r2_account_id: str = Field(default="")
+    r2_access_key_id: str = Field(default="")
+    r2_secret_access_key: str = Field(default="")
+    r2_bucket_name: str = Field(default="")
+
     @property
     def is_production(self) -> bool:
         return self.environment.lower() == "production"

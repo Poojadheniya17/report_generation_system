@@ -12,13 +12,16 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # In dev we auto-create tables for convenience. In production, migrations
-    # (alembic) own the schema — see alembic/ and README.
-    if not settings.is_production:
-        from app.db.session import Base, engine
-        from app.models import models  # noqa: F401  (register models on Base)
+    # Auto-create any tables that don't exist yet. Safe to run on every
+    # startup — create_all() only creates missing tables, it's a no-op for
+    # ones that already exist. This project doesn't have a real alembic
+    # migration history set up (despite an earlier comment here implying
+    # otherwise), so this is what actually creates the schema on a fresh
+    # production database too, not just locally.
+    from app.db.session import Base, engine
+    from app.models import models  # noqa: F401  (register models on Base)
 
-        Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
     yield
 
 
